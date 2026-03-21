@@ -12,6 +12,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <ThemeProvider>
           <AuthProvider>
