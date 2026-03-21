@@ -1,15 +1,23 @@
 "use client";
 
+let workerSet = false;
+
+async function getPdfLib() {
+  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf");
+  if (!workerSet) {
+    // Use CDN worker — no webpack bundling needed, no Terser issues
+    const workerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+    workerSet = true;
+  }
+  return pdfjsLib;
+}
+
 export async function extractTextFromPDF(file: File): Promise<string> {
-  const pdfjsLib = await import("pdfjs-dist");
-
-  // Use CDN worker matching the exact installed version
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
+  const pdfjsLib = await getPdfLib();
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-  // Try text extraction first
   const textParts: string[] = [];
   for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 50); pageNum++) {
     const page = await pdf.getPage(pageNum);
@@ -25,14 +33,12 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   const combined = textParts.join("\n\n").trim();
   if (combined.length > 100) return combined;
 
-  // Scanned PDF — render pages to images
   return await extractImagesFromPDF(pdf);
 }
 
-export async function extractImagesFromPDF(pdf: any): Promise<string> {
+async function extractImagesFromPDF(pdf: any): Promise<string> {
   const images: string[] = [];
   const pageCount = Math.min(pdf.numPages, 50);
-
   for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
@@ -44,7 +50,6 @@ export async function extractImagesFromPDF(pdf: any): Promise<string> {
     const base64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
     images.push(base64);
   }
-
   return `__VISION__${JSON.stringify(images)}`;
 }
 
