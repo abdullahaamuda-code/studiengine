@@ -1,0 +1,30 @@
+{
+  "name": "prepwise",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18",
+    "react-dom": "^18",
+    "groq-sdk": "^0.3.3",
+    "pdfjs-dist": "^4.4.168",
+    "katex": "^0.16.11",
+    "firebase": "^10.12.0",
+    "browser-image-compression": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "typescript": "^5",
+    "tailwindcss": "^3.4.1",
+    "postcss": "^8",
+    "autoprefixer": "^10",
+    "@types/katex": "^0.16.7"
+  }
+}
