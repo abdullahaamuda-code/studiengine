@@ -1,17 +1,26 @@
 "use client";
 
+let initialized = false;
+
 async function getPdfLib() {
   const pdfjsLib = await import("pdfjs-dist");
-  // Disable worker entirely — run in main thread
-  // This avoids ALL webpack/Terser/CDN issues at the cost of slightly slower parsing
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+  if (!initialized) {
+    // Point to the worker on unpkg — reliable CDN, correct version always matches
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    initialized = true;
+  }
   return pdfjsLib;
 }
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   const pdfjsLib = await getPdfLib();
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
+  const pdf = await pdfjsLib.getDocument({
+    data: arrayBuffer,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  }).promise;
 
   const textParts: string[] = [];
   for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 50); pageNum++) {
