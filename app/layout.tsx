@@ -15,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link
           rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css"
+          href="https://unpkg.com/katex@0.16.11/dist/katex.min.css"
           crossOrigin="anonymous"
         />
       </head>
