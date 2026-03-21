@@ -36,7 +36,6 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   const combined = textParts.join("\n\n").trim();
   if (combined.length > 100) return combined;
 
-  // Scanned PDF — render to images
   return await extractImagesFromPDF(pdf);
 }
 
@@ -47,23 +46,23 @@ async function extractImagesFromPDF(pdf: any): Promise<string> {
 
   for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 2.0 });
+    // Original scale and quality — unchanged
+    const viewport = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
     await page.render({ canvasContext: ctx, viewport }).promise;
 
-    // Sample a small area to estimate contrast — just for the warning, never blocks
+    // Sample pixels just for the warning — never affects processing
     const sample = ctx.getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100));
-    const variance = getPixelVariance(sample.data);
-    if (variance < 40) lowContrastPages++;
+    if (getPixelVariance(sample.data) < 40) lowContrastPages++;
 
-    const base64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+    // Original quality — unchanged
+    const base64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
     images.push(base64);
   }
 
-  // Quality is just a hint — never blocks processing
   const qualityWarning = lowContrastPages / pageCount > 0.5 ? "low"
     : lowContrastPages / pageCount > 0.25 ? "medium"
     : "good";
