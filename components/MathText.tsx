@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
 
-// Renders text that may contain LaTeX math — inline $...$ and block $$...$$
-// Falls back to plain text gracefully if KaTeX fails
 export default function MathText({ text, style }: { text: string; style?: React.CSSProperties }) {
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -11,23 +9,18 @@ export default function MathText({ text, style }: { text: string; style?: React.
 
     async function render() {
       const katex = (await import("katex")).default;
-      // Import KaTeX CSS once
-      await import("katex/dist/katex.min.css");
-
+      // CSS is loaded globally via <link> in layout.tsx — no import needed here
       const el = ref.current!;
-      // Split text by $...$ and $$...$$ patterns
       const parts = splitMath(text);
 
       el.innerHTML = parts.map(part => {
         if (part.type === "block") {
-          try {
-            return `<span class="math-block">${katex.renderToString(part.content, { displayMode: true, throwOnError: false })}</span>`;
-          } catch { return `<span>${escapeHtml(part.content)}</span>`; }
+          try { return `<span class="math-block">${katex.renderToString(part.content, { displayMode: true, throwOnError: false })}</span>`; }
+          catch { return `<span>${escapeHtml(part.content)}</span>`; }
         }
         if (part.type === "inline") {
-          try {
-            return katex.renderToString(part.content, { displayMode: false, throwOnError: false });
-          } catch { return `<span>${escapeHtml(part.content)}</span>`; }
+          try { return katex.renderToString(part.content, { displayMode: false, throwOnError: false }); }
+          catch { return `<span>${escapeHtml(part.content)}</span>`; }
         }
         return escapeHtml(part.content);
       }).join("");
@@ -40,25 +33,22 @@ export default function MathText({ text, style }: { text: string; style?: React.
 }
 
 function escapeHtml(s: string) {
-  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 type Part = { type: "text" | "inline" | "block"; content: string };
 
 function splitMath(input: string): Part[] {
   const parts: Part[] = [];
-  // Match $$...$$ first (block), then $...$ (inline)
   const regex = /\$\$([^$]+)\$\$|\$([^$\n]+)\$/g;
   let last = 0;
   let m: RegExpExecArray | null;
-
   while ((m = regex.exec(input)) !== null) {
     if (m.index > last) parts.push({ type: "text", content: input.slice(last, m.index) });
     if (m[1] !== undefined) parts.push({ type: "block", content: m[1] });
     else if (m[2] !== undefined) parts.push({ type: "inline", content: m[2] });
     last = m.index + m[0].length;
   }
-
   if (last < input.length) parts.push({ type: "text", content: input.slice(last) });
   return parts;
 }
