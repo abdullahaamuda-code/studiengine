@@ -1,22 +1,17 @@
 "use client";
 
-let workerSet = false;
-
 async function getPdfLib() {
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf");
-  if (!workerSet) {
-    // Use CDN worker — no webpack bundling needed, no Terser issues
-    const workerUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-    workerSet = true;
-  }
+  const pdfjsLib = await import("pdfjs-dist");
+  // Disable worker entirely — run in main thread
+  // This avoids ALL webpack/Terser/CDN issues at the cost of slightly slower parsing
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
   return pdfjsLib;
 }
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   const pdfjsLib = await getPdfLib();
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
 
   const textParts: string[] = [];
   for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 50); pageNum++) {
