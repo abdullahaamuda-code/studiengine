@@ -3,15 +3,13 @@
 export async function extractTextFromPDF(file: File): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-  ).toString();
+  // Use CDN worker matching the exact installed version
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
-  // First try: extract real text (fast, works on digital PDFs)
+  // Try text extraction first
   const textParts: string[] = [];
   for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 50); pageNum++) {
     const page = await pdf.getPage(pageNum);
@@ -24,35 +22,29 @@ export async function extractTextFromPDF(file: File): Promise<string> {
     if (pageText) textParts.push(pageText);
   }
 
-  const combinedText = textParts.join("\n\n").trim();
+  const combined = textParts.join("\n\n").trim();
+  if (combined.length > 100) return combined;
 
-  // If we got real text, return it
-  if (combinedText.length > 100) return combinedText;
-
-  // Otherwise it's a scanned PDF — render pages to base64 images for vision
+  // Scanned PDF — render pages to images
   return await extractImagesFromPDF(pdf);
 }
 
 export async function extractImagesFromPDF(pdf: any): Promise<string> {
-  // Returns a special marker so the caller knows to use vision API
   const images: string[] = [];
-  const pageCount = Math.min(pdf.numPages, 50); // cap at 20 pages
+  const pageCount = Math.min(pdf.numPages, 50);
 
   for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
     const page = await pdf.getPage(pageNum);
-    const viewport = page.getViewport({ scale: 1.5 }); // higher scale = better OCR accuracy
-
+    const viewport = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
-
     await page.render({ canvasContext: ctx, viewport }).promise;
     const base64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
     images.push(base64);
   }
 
-  // Return JSON-encoded images with a special prefix so InputPanel knows
   return `__VISION__${JSON.stringify(images)}`;
 }
 
