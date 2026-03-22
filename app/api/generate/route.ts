@@ -27,41 +27,23 @@ function parseAIJson(raw: string): any {
   return null;
 }
 
-// Force A. B. C. D. labels on all options
 function normalizeQuestions(questions: any[]): any[] {
   if (!Array.isArray(questions)) return [];
   const LABELS = ["A", "B", "C", "D"];
   return questions.map((q, qi) => {
     if (!q || typeof q !== "object") return q;
     let options: string[] = (q.options || []).slice(0, 4);
-    
-    // Check if already properly labeled
-    const properlyLabeled = options.length >= 2 && options.every((opt: string, i: number) =>
-      typeof opt === "string" && new RegExp(`^${LABELS[i]}[.)\\s]`, "i").test(opt)
-    );
-    
-    if (!properlyLabeled) {
-      options = options.map((opt: string, i: number) => {
-        const s = typeof opt === "string" ? opt.replace(/^[A-Za-z][.)]\s*/, "").trim() : String(opt);
-        return `${LABELS[i]}. ${s}`;
-      });
-    } else {
-      // Normalize format to always be "A. text" not "A) text" or "A.text"
-      options = options.map((opt: string, i: number) => {
-        const s = opt.replace(/^[A-Za-z][.)]\s*/, "").trim();
-        return `${LABELS[i]}. ${s}`;
-      });
-    }
-    
-    // Normalize answer to single letter
+    options = options.map((opt: string, i: number) => {
+      const s = typeof opt === "string" ? opt.replace(/^[A-Za-z][.)]\s*/, "").trim() : String(opt);
+      return `${LABELS[i]}. ${s}`;
+    });
     const rawAnswer = String(q.answer || "A").trim().toUpperCase();
     const answer = rawAnswer.match(/^([ABCD])/)?.[1] || "A";
-    
     return { ...q, id: q.id || qi + 1, options, answer };
   });
 }
 
-async function callGroqWithRetry(apiKey: string, model: string, messages: any[], maxTokens = 3000, retries = 3): Promise<string> {
+async function callGroq(apiKey: string, model: string, messages: any[], maxTokens = 3000, retries = 3): Promise<string> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await fetch(GROQ_URL, {
@@ -95,56 +77,26 @@ function buildSystemPrompt(type: string, count: number): string {
 
   if (type === "notes_quiz") return `Nigerian university exam AI. Generate EXACTLY ${count} MCQ questions from the given material.
 Return ONLY a raw JSON array, no markdown, no backticks.
-${mathRules}
-${optRules}
+${mathRules} ${optRules}
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]
-IMPORTANT: Generate EXACTLY ${count} questions. Not fewer, not more. If material is limited, create variations.
-answer is single letter A B C D. Always include explanation.`;
+IMPORTANT: You MUST generate EXACTLY ${count} questions. If the material seems limited, create meaningful variations and test different aspects.
+Answer is single letter A B C D. Always include explanation.`;
 
   if (type === "pq_quiz") return `Convert Nigerian past exam questions into a quiz.
 Return ONLY a raw JSON array, no markdown, no backticks.
-${mathRules}
-${optRules}
+${mathRules} ${optRules}
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","year":""}]
-Extract as many questions as possible up to ${count}. answer is single letter A B C D. Always include explanation.`;
+Extract as many questions as possible up to ${count}. Answer is single letter A B C D. Always include explanation.`;
 
   return "";
 }
 
+const VISION_EXTRACT_PROMPT = `Extract ALL questions from these exam pages as plain text. Include every question, all options, and mark the correct answer if visible. Be thorough — get every question on the page.`;
+
 const VISION_SUFFIX = `
-Scanned exam pages. Extract ALL questions visible. Label options A. B. C. D. Ignore checkmarks.
+Scanned exam pages. Extract ALL questions. Label options A. B. C. D. Ignore checkmarks.
 Math in $...$: $\\frac{a}{b}$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$.
 Return only the JSON array.`;
-
-async function processVisionBatches(apiKey: string, systemPrompt: string, images: string[], type: string, count: number): Promise<any[]> {
-  const batches: string[][] = [];
-  for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
-  const allQuestions: any[] = [];
-
-  for (let b = 0; b < batches.length; b++) {
-    if (type === "pq_quiz" && allQuestions.length >= count) break;
-    const batch = batches[b];
-    const imageContent = batch.map((b64: string) => ({
-      type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` },
-    }));
-    const remaining = count - allQuestions.length;
-    const batchPrompt = type === "pq_quiz"
-      ? `Extract up to ${remaining} questions from these ${batch.length} page(s). Return only the JSON array.`
-      : `Generate up to ${Math.min(remaining, Math.ceil(count / batches.length))} questions from these ${batch.length} page(s). Return only the JSON array.`;
-    try {
-      const raw = await callGroqWithRetry(apiKey, VISION_MODEL, [
-        { role: "system", content: systemPrompt + VISION_SUFFIX },
-        { role: "user", content: [...imageContent, { type: "text", text: batchPrompt }] },
-      ], 3000);
-      const parsed = parseAIJson(raw);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((q: any, i: number) => { q.id = allQuestions.length + i + 1; });
-        allQuestions.push(...parsed);
-      }
-    } catch (e: any) { console.error(`Batch ${b + 1} failed:`, e.message); }
-  }
-  return allQuestions;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -157,42 +109,82 @@ export async function POST(req: NextRequest) {
     const systemPrompt = buildSystemPrompt(type, count);
     if (!systemPrompt) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-    // Key selection — premium users get dedicated key
     const premiumKey = process.env.GROQ_PREMIUM_KEY;
     const textKey = process.env.GROQ_TEXT_KEY || process.env.GROQ_API_KEY;
     const visionKey = process.env.GROQ_VISION_KEY || process.env.GROQ_API_KEY;
+    const activeTextKey = (isPremium && premiumKey) ? premiumKey : textKey;
 
     if (images && images.length > 0) {
-      const key = (isPremium && premiumKey) ? premiumKey : visionKey;
-      if (!key) return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
+      const activeVisionKey = (isPremium && premiumKey) ? premiumKey : visionKey;
+      if (!activeVisionKey) return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
 
-      const rawQuestions = await processVisionBatches(key, systemPrompt, images, type, count);
-      if (rawQuestions.length === 0) {
+      // Step 1: Extract text from ALL pages first
+      const batches: string[][] = [];
+      for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
+
+      const extractedTexts: string[] = [];
+      for (const batch of batches) {
+        const imageContent = batch.map((b64: string) => ({
+          type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` },
+        }));
+        try {
+          const text = await callGroq(activeVisionKey, VISION_MODEL, [{
+            role: "user",
+            content: [...imageContent, { type: "text", text: VISION_EXTRACT_PROMPT }],
+          }], 2000);
+          extractedTexts.push(text);
+        } catch (e: any) { console.error("Vision extract batch failed:", e.message); }
+      }
+
+      if (extractedTexts.length === 0) {
         return NextResponse.json({ error: "Could not extract questions from PDF. Try a clearer scan." }, { status: 422 });
+      }
+
+      // Step 2: Count what was found in extracted text (rough estimate)
+      const combinedText = extractedTexts.join("\n\n");
+      const roughCount = (combinedText.match(/\d+[.)]/g) || []).length;
+      const estimatedQuestions = Math.max(roughCount, extractedTexts.length * 3);
+
+      // Step 3: Convert extracted text to structured JSON questions
+      if (!activeTextKey) return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
+
+      const safeText = truncateContent(combinedText);
+      const userMsg = type === "pq_quiz"
+        ? `Convert these extracted past questions into a quiz. Return ONLY the JSON array:\n\n${safeText}`
+        : safeText;
+
+      const raw = await callGroq(activeTextKey, TEXT_MODEL, [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMsg },
+      ], 4000);
+
+      const rawQuestions = parseAIJson(raw);
+      if (!rawQuestions || !Array.isArray(rawQuestions)) {
+        return NextResponse.json({ error: "Could not parse questions. Please try again." }, { status: 422 });
       }
 
       const normalized = normalizeQuestions(rawQuestions);
       const totalFound = normalized.length;
       const final = normalized.slice(0, count);
 
-      // If fewer found than requested, include a notice but don't error
       return NextResponse.json({
         questions: final,
         totalFound,
         requested: count,
-        notice: totalFound < count ? `Found ${totalFound} questions in the PDF (you selected ${count}).` : null,
+        notice: totalFound < count
+          ? `This PDF had ${totalFound} extractable questions. Showing all ${totalFound}.`
+          : null,
       });
 
     } else {
-      const key = (isPremium && premiumKey) ? premiumKey : textKey;
-      if (!key) return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
+      if (!activeTextKey) return NextResponse.json({ error: "Server configuration error." }, { status: 500 });
 
       const safeContent = truncateContent(content);
       const userMessage = type === "pq_quiz"
         ? `Convert these past questions into a quiz. Return ONLY the JSON array:\n\n${safeContent}`
         : safeContent;
 
-      const raw = await callGroqWithRetry(key, TEXT_MODEL, [
+      const raw = await callGroq(activeTextKey, TEXT_MODEL, [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ], 3000);
@@ -210,7 +202,9 @@ export async function POST(req: NextRequest) {
         questions: final,
         totalFound,
         requested: count,
-        notice: totalFound < count ? `AI generated ${totalFound} questions from this content (you selected ${count}).` : null,
+        notice: totalFound < count
+          ? `Generated ${totalFound} questions from this content. Try adding more notes for ${count}.`
+          : null,
       });
     }
 
