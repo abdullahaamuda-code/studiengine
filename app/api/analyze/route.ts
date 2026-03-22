@@ -56,6 +56,24 @@ Format: {"topTopics":[{"topic":"...","frequency":"high|medium|low","count":5,"li
 
 const EXTRACT_PROMPT = `Extract all questions, topics, and years visible on these exam pages. Return as plain text only.`;
 
+
+async function geminiExtract(apiKey: string, images: string[], prompt: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const parts: any[] = images.map(b64 => ({ inline_data: { mime_type: "image/jpeg", data: b64 } }));
+  parts.push({ text: prompt });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 2000, temperature: 0.2 } }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.error?.message || `Gemini ${res.status}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { content, images } = await req.json();
@@ -74,10 +92,16 @@ export async function POST(req: NextRequest) {
       for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
       const parts: string[] = [];
       for (const batch of batches) {
-        const imageContent = batch.map((b64: string) => ({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` } }));
         try {
-          const text = await callGroq(visionKey, VISION_MODEL, [{ role: "user", content: [...imageContent, { type: "text", text: EXTRACT_PROMPT }] }], 1500);
-          parts.push(text);
+          const geminiKey = process.env.GEMINI_API_KEY;
+          let text: string;
+          if (geminiKey) {
+            text = await geminiExtract(geminiKey, batch, EXTRACT_PROMPT);
+          } else {
+            const imageContent = batch.map((b64: string) => ({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` } }));
+            text = await callGroq(visionKey!, VISION_MODEL, [{ role: "user", content: [...imageContent, { type: "text", text: EXTRACT_PROMPT }] }], 1500);
+          }
+          if (text) parts.push(text);
         } catch (e: any) { console.error("Vision batch failed:", e.message); }
       }
       if (parts.length === 0) return NextResponse.json({ error: "Could not read content from PDF. Try a clearer scan." }, { status: 422 });
