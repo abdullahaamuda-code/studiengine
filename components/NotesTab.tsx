@@ -18,6 +18,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
   const [progress, setProgress] = useState(0);
+  const [foundCount, setFoundCount] = useState<number | null>(null);
   const [usageInfo, setUsageInfo] = useState<{quizCount:number} | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
@@ -34,7 +35,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
     try {
       const usage = await getUsage(userId);
       if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
+        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade to Premium for unlimited access.`);
         setShowUpgrade(true); setLoading(false); return;
       }
       const trimmedImages = images ? images.slice(0, limits.maxPages) : undefined;
@@ -47,7 +48,9 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error || "Something went wrong."); setLoading(false); return; }
       await incrementQuiz(userId);
-      setQuestions((data.questions || []).slice(0, count));
+      const finalQs = (data.questions || []).slice(0, count);
+      if (data.totalFound && data.totalFound < count) setFoundCount(data.totalFound);
+      setQuestions(finalQs);
       show("Quiz generated!", "success");
     } catch (e: any) { setError(e.message || "Network error."); }
     setLoading(false); setProgress(0);
