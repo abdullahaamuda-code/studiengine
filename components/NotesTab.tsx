@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getUsage, canGenerateQuiz, incrementQuiz, getLimitsForUser } from "@/lib/limits";
 import { useToast } from "./Toast";
 
-export default function NotesTab() {
+export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void }) {
   const { userId, isPremium, isGuest } = useAuth();
   const { show } = useToast();
   const [questions, setQuestions] = useState<any[] | null>(null);
@@ -53,7 +53,7 @@ export default function NotesTab() {
     setLoading(false); setProgress(0);
   }
 
-  if (questions) return <QuizPlayer questions={questions} onReset={() => setQuestions(null)} userId={userId} isPremium={isPremium} />;
+  if (questions) return <QuizPlayer questions={questions} onReset={() => setQuestions(null)} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
 
   return (
     <div className="animate-in">
@@ -62,14 +62,14 @@ export default function NotesTab() {
       </p>
       {usageInfo && !isPremium && (
         <div style={{ marginBottom: 14, padding: "8px 12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 8, fontSize: 12, color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
-          <span>Quizzes today</span>
+          <span>CBTs today</span>
           <span style={{ color: usageInfo.quizCount >= quizLimit ? "#f87171" : "#4ade80", fontWeight: 600 }}>{usageInfo.quizCount} / {quizLimit}</span>
         </div>
       )}
       <QuestionCountSelector value={count} onChange={setCount} maxAllowed={limits.maxQuestions} />
       <InputPanel onSubmit={handleSubmit} loading={loading} progress={progress}
         placeholder={`Paste your lecture notes here...\n\nAny subject — Chemistry, Economics, Government, Biology, Physics, Mathematics...`}
-        buttonLabel={`Generate ${count} Questions →`} hint="Works best with at least 2-3 paragraphs of notes." />
+        buttonLabel={`Generate ${count} CBT Questions →`} hint="Works best with at least 2-3 paragraphs of notes." />
       {error && <div style={{ marginTop: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", color: "#f87171", fontSize: 13 }}>⚠️ {error}</div>}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} reason={upgradeReason} />}
     </div>
