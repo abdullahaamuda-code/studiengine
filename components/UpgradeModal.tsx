@@ -28,9 +28,10 @@ export default function UpgradeModal({ onClose, reason }: Props) {
 
         <div style={{ textAlign: "left", marginBottom: 18 }}>
           {[
-            "Unlimited quiz generations",
+            "First access to all new features",
+            "Unlimited CBT generations",
             "Unlimited scanned PDF uploads",
-            "Up to 30 questions per quiz",
+            "Up to 30 questions per CBT",
             "Full extensive review after every quiz",
             "Quiz history — review past sessions anytime",
             "Priority AI processing",
