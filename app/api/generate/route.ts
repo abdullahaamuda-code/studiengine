@@ -206,6 +206,55 @@ For each question include: question number, full question text, all options (A B
 For math write: fractions as (a/b), limits as lim(x->0), roots as sqrt(x), powers as x^2.
 Extract EVERY question you can see. Be thorough.`;
 
+
+// OpenRouter fallback — free models available, acts as backup when Groq is rate limited
+async function openRouterGenerate(apiKey: string, messages: any[], maxTokens = 3000): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://studiengine.vercel.app",
+      "X-Title": "Studiengine",
+    },
+    body: JSON.stringify({
+      model: "meta-llama/llama-3.1-8b-instruct:free",
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.error?.message || `OpenRouter ${res.status}`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+// Try Groq keys first, then OpenRouter as final fallback
+async function generateWithFallback(groqKeys: string[], messages: any[], maxTokens = 3000): Promise<string> {
+  // Try all Groq keys first
+  for (const key of groqKeys) {
+    try {
+      return await groq(key, TEXT_MODEL, messages, maxTokens, 2);
+    } catch (e: any) {
+      if (e.message.includes("busy") || e.message.includes("rate") || e.message.includes("429")) {
+        console.log("[generate] Groq key rate limited, trying next...");
+        continue;
+      }
+      throw e;
+    }
+  }
+  // All Groq keys exhausted — try OpenRouter
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (orKey) {
+    console.log("[generate] All Groq keys busy, falling back to OpenRouter...");
+    return await openRouterGenerate(orKey, messages, maxTokens);
+  }
+  throw new Error("AI is busy. Please wait a few seconds and try again.");
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
