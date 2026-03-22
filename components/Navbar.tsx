@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "./AuthModal";
 import UpgradeModal from "./UpgradeModal";
+import HistoryModal from "./HistoryModal";
 
 function StudiengineLogo({ size = 28 }: { size?: number }) {
   return (
@@ -34,6 +35,7 @@ export default function Navbar() {
   const [showAuth, setShowAuth] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isLoggedIn = !!user || isGuest;
@@ -153,6 +155,13 @@ export default function Navbar() {
                       </button>
                     )}
 
+                    <button onClick={() => { setMenuOpen(false); setShowHistory(true); }} style={{
+                      width: "100%", textAlign: "left", padding: "9px 12px", background: "none",
+                      border: "none", color: isPremium ? "#93c5fd" : "#475569", fontSize: 13, cursor: "pointer",
+                      fontFamily: "var(--font-body)", borderRadius: 8, display: "flex", alignItems: "center", gap: 8,
+                    }}>
+                      📚 CBT History {!isPremium && <span style={{ fontSize: 10, color: "#fbbf24" }}>⚡ Premium</span>}
+                    </button>
                     <button onClick={() => { setMenuOpen(false); logout(); }} style={{
                       width: "100%", textAlign: "left", padding: "9px 12px", background: "none",
                       border: "none", color: "#f87171", fontSize: 13, cursor: "pointer",
@@ -170,6 +179,7 @@ export default function Navbar() {
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
     </>
   );
 }
