@@ -32,22 +32,21 @@ Rules:
 - always include explanation field`;
 
 function buildTextPrompt(type: string, count: number): string {
-  if (type === "notes_quiz") return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
+  if (type === "notes_quiz") {
+    return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation header, no LaTeX backslashes.
 Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
 Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
+  }
 
-  if (type === "pq_quiz") return `You are converting Nigerian past exam questions into a quiz.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no LaTeX backslashes.
+  if (type === "pq_quiz") {
+    return `You are converting Nigerian past exam questions into a quiz. Generate exactly ${count} MCQ questions from the provided past‑paper text.
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation header, no LaTeX backslashes.
 Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why this answer is correct","year":"2019 WAEC or empty"}]
-Rules:
-- If question has A B C D options, use them exactly
-- If no options, create 4 plausible ones
-- answer is a SINGLE letter: A, B, C, or D
-- always include explanation field
-- extract up to ${count} questions`;
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
+Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field | extract from the past questions given`;
+  }
 
   return "";
 }
