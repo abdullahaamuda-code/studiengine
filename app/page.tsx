@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
 import Calculator from "@/components/Calculator";
 import OnboardingModal from "@/components/OnboardingModal";
+import FeedbackModal from "@/components/FeedbackModal";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -28,6 +29,7 @@ export default function Home() {
   const [tab, setTab] = useState("notes");
   const [showAuth, setShowAuth] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
   const { user, isGuest, loading } = useAuth();
   const { theme, toggle } = useTheme();
 
@@ -40,7 +42,7 @@ export default function Home() {
 
       <Navbar />
 
-      {/* Theme toggle — top right of page, below navbar */}
+      {/* Theme toggle */}
       <button onClick={toggle} style={{
         position: "fixed", top: 64, right: 16, zIndex: 40,
         width: 34, height: 34, borderRadius: 10,
@@ -48,7 +50,7 @@ export default function Home() {
         border: "1px solid var(--border-glass)", cursor: "pointer",
         fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
         boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-      }} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+      }}>
         {theme === "dark" ? "☀️" : "🌙"}
       </button>
 
@@ -100,13 +102,12 @@ export default function Home() {
           )}
         </div>
 
-        {/* Footer */}
         <p style={{ textAlign: "center", marginTop: 28, fontSize: 11, color: "var(--text-muted)" }}>
           © 2026 Studiengine. All rights reserved.
         </p>
       </div>
 
-      {/* Floating calculator */}
+      {/* Floating calculator — bottom right */}
       {isLoggedIn && (
         <button onClick={() => setShowCalc(c => !c)} style={{
           position: "fixed", bottom: 24, right: 16, zIndex: 55,
@@ -118,7 +119,18 @@ export default function Home() {
         }}>🧮</button>
       )}
 
+      {/* Floating feedback — bottom left */}
+      <button onClick={() => setShowFeedback(true)} style={{
+        position: "fixed", bottom: 24, left: 16, zIndex: 55,
+        width: 48, height: 48, borderRadius: "50%",
+        background: "rgba(8,20,40,0.9)",
+        border: "1px solid rgba(56,139,253,0.2)", cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.4)", fontSize: 18, transition: "all 0.2s",
+      }} title="Send feedback">💬</button>
+
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       <OnboardingModal />
     </div>
