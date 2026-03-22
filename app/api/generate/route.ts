@@ -25,11 +25,18 @@ Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sq
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
 Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
 
-  if (type === "pq_quiz") return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
+  if (type === "pq_quiz") return `You are a Nigerian exam quiz generator. Your job is to ALWAYS produce a JSON array of quiz questions.
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no LaTeX backslashes. NEVER refuse or explain.
 Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
-Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why this answer is correct","year":""}]
+Rules:
+- Read ALL text visible on the pages — questions, options, numbers, everything
+- If you see questions with A B C D options, use them exactly
+- If you see questions WITHOUT options, CREATE 4 plausible options yourself
+- If the content is unclear, still generate questions based on what you can read
+- ALWAYS return a JSON array — never return plain text or refuse
+- answer is a SINGLE letter: A, B, C, or D
+- extract up to ${count} questions`;
 
   return "";
 }
