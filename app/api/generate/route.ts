@@ -19,27 +19,25 @@ function parseAIJson(raw: string): any {
 }
 
 function buildSystemPrompt(type: string, count: number): string {
-  if (type === "notes_quiz") return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
+  if (type === "notes_quiz") {
+    return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
 CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
-Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
+Use plain text for math: cos(x) not \\\\cos x, theta not \\\\theta, sqrt(x) not \\\\sqrt{x}.
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
 Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
+  }
 
-  if (type === "pq_quiz") return `You are a Nigerian exam quiz generator. Your job is to ALWAYS produce a JSON array of quiz questions.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no LaTeX backslashes. NEVER refuse or explain.
-Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why this answer is correct","year":""}]
-Rules:
-- Read ALL text visible on the pages — questions, options, numbers, everything
-- If you see questions with A B C D options, use them exactly
-- If you see questions WITHOUT options, CREATE 4 plausible options yourself
-- If the content is unclear, still generate questions based on what you can read
-- ALWAYS return a JSON array — never return plain text or refuse
-- answer is a SINGLE letter: A, B, C, or D
-- extract up to ${count} questions`;
+  if (type === "pq_quiz") {
+    return `You are a Nigerian exam quiz generator. Convert the given past exam questions into a quiz.
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
+Use plain text for math: cos(x) not \\\\cos x, theta not \\\\theta, sqrt(x) not \\\\sqrt{x}.
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
+Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field | extract up to ${count} questions`;
+  }
 
   return "";
 }
+
 
 const VISION_SUFFIX = `\nThese are Nigerian exam paper pages. Extract every question visible.
 Write math in plain text: cos(x), sin(theta), x^2, sqrt(x). No LaTeX.
