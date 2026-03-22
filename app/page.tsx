@@ -5,7 +5,7 @@ import Navbar from "@/components/Navbar";
 import AuthModal from "@/components/AuthModal";
 import Calculator from "@/components/Calculator";
 import OnboardingModal from "@/components/OnboardingModal";
-import FeedbackModal from "@/components/FeedbackModal";
+import InstallPrompt from "@/components/InstallPrompt";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -14,26 +14,44 @@ const PQAnalyzerTab = dynamic(() => import("@/components/PQAnalyzerTab"), { ssr:
 const PQQuizTab = dynamic(() => import("@/components/PQQuizTab"), { ssr: false });
 
 const TABS = [
-  { id: "notes", shortLabel: "Notes",
+  {
+    id: "notes", shortLabel: "Notes to CBT",
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
-    desc: "Turn lecture notes into MCQs" },
-  { id: "analyzer", shortLabel: "Analyzer",
+    desc: "Turn lecture notes into CBT practice questions",
+  },
+  {
+    id: "analyzer", shortLabel: "PQ Analyzer",
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-    desc: "Spot patterns in past questions" },
-  { id: "pqquiz", shortLabel: "PQ Quiz",
+    desc: "Spot repeated topics and exam patterns across years",
+  },
+  {
+    id: "pqquiz", shortLabel: "PQ to CBT",
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
-    desc: "Convert past questions to interactive quiz" },
+    desc: "Convert past questions into CBT practice",
+  },
 ];
 
 export default function Home() {
   const [tab, setTab] = useState("notes");
   const [showAuth, setShowAuth] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
   const { user, isGuest, loading } = useAuth();
   const { theme, toggle } = useTheme();
 
   const isLoggedIn = !!user || isGuest;
+
+  // Register service worker
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(console.error);
+    }
+  }, []);
+
+  function handleCBTComplete() {
+    // Trigger install prompt after finishing a CBT
+    setShowInstall(true);
+  }
 
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
@@ -42,7 +60,7 @@ export default function Home() {
 
       <Navbar />
 
-      {/* Theme toggle */}
+      {/* Theme toggle — fixed top right below navbar */}
       <button onClick={toggle} style={{
         position: "fixed", top: 64, right: 16, zIndex: 40,
         width: 34, height: 34, borderRadius: 10,
@@ -50,7 +68,7 @@ export default function Home() {
         border: "1px solid var(--border-glass)", cursor: "pointer",
         fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
         boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-      }}>
+      }} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
         {theme === "dark" ? "☀️" : "🌙"}
       </button>
 
@@ -70,13 +88,14 @@ export default function Home() {
           </div>
         )}
 
+        {/* Tabs */}
         <div className="animate-in glass-static" style={{ borderRadius: 14, padding: 5, marginBottom: 20, display: "flex", gap: 4 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={tab === t.id ? "tab-active" : ""}
-              style={{ flex: 1, padding: "10px 4px", borderRadius: 10, border: "1px solid transparent", background: "transparent", cursor: "pointer", transition: "all 0.2s", fontFamily: "var(--font-body)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              style={{ flex: 1, padding: "10px 2px", borderRadius: 10, border: "1px solid transparent", background: "transparent", cursor: "pointer", transition: "all 0.2s", fontFamily: "var(--font-body)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
               <span style={{ color: tab === t.id ? "#60a5fa" : "var(--text-muted)", display: "flex" }}>{t.icon}</span>
-              <span style={{ fontSize: 10, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#93c5fd" : "var(--text-muted)", whiteSpace: "nowrap" }}>{t.shortLabel}</span>
+              <span style={{ fontSize: 9, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#93c5fd" : "var(--text-muted)", whiteSpace: "nowrap", textAlign: "center" }}>{t.shortLabel}</span>
             </button>
           ))}
         </div>
@@ -88,9 +107,9 @@ export default function Home() {
         <div className="glass" style={{ borderRadius: 18, padding: "22px 18px" }}>
           {isLoggedIn ? (
             <>
-              {tab === "notes" && <NotesTab />}
+              {tab === "notes" && <NotesTab onCBTComplete={handleCBTComplete} />}
               {tab === "analyzer" && <PQAnalyzerTab />}
-              {tab === "pqquiz" && <PQQuizTab />}
+              {tab === "pqquiz" && <PQQuizTab onCBTComplete={handleCBTComplete} />}
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "40px 20px" }}>
@@ -107,7 +126,7 @@ export default function Home() {
         </p>
       </div>
 
-      {/* Floating calculator — bottom right */}
+      {/* Floating calculator */}
       {isLoggedIn && (
         <button onClick={() => setShowCalc(c => !c)} style={{
           position: "fixed", bottom: 24, right: 16, zIndex: 55,
@@ -119,20 +138,10 @@ export default function Home() {
         }}>🧮</button>
       )}
 
-      {/* Floating feedback — bottom left */}
-      <button onClick={() => setShowFeedback(true)} style={{
-        position: "fixed", bottom: 24, left: 16, zIndex: 55,
-        width: 48, height: 48, borderRadius: "50%",
-        background: "rgba(8,20,40,0.9)",
-        border: "1px solid rgba(56,139,253,0.2)", cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.4)", fontSize: 18, transition: "all 0.2s",
-      }} title="Send feedback">💬</button>
-
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
-      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       <OnboardingModal />
+      <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
     </div>
   );
 }
