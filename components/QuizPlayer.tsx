@@ -71,7 +71,9 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
     if (revealed) return;
     setSelected(opt);
     setRevealed(true);
-    const correct = opt.charAt(0).toUpperCase() === q.answer.toUpperCase();
+    const hasLabel = /^[ABCD]\.\s/i.test(opt);
+    const letter = hasLabel ? opt.charAt(0).toUpperCase() : ["A","B","C","D"][q.options.indexOf(opt)] || "?";
+    const correct = letter === q.answer.toUpperCase();
     if (correct) setScore(s => s + 1);
     else setWrongOnes(w => [...w, q]);
   }
@@ -206,19 +208,21 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
         {q.options.map((opt) => {
-          const letter = opt.charAt(0).toUpperCase();
+          // Only strip label if option genuinely starts with A. B. C. or D. (letter + period + space)
+          const hasLabel = /^[ABCD]\.\s/i.test(opt);
+          const letter = hasLabel ? opt.charAt(0).toUpperCase() : ["A","B","C","D"][q.options.indexOf(opt)] || "?";
+          const optContent = hasLabel ? opt.slice(3).trim() : opt;
           const isCorrect = letter === q.answer.toUpperCase();
           const isSelected = selected === opt;
           let cls = "option-default";
           if (revealed) { if (isCorrect) cls = "option-correct"; else if (isSelected) cls = "option-wrong"; }
-          const optContent = opt.slice(2).trim();
           return (
             <button key={opt} onClick={() => pick(opt)} className={cls}
               style={{ padding: "12px 14px", borderRadius: 11, textAlign: "left", fontSize: 14, cursor: revealed ? "default" : "pointer", fontFamily: "var(--font-body)", lineHeight: 1.6, display: "flex", alignItems: "flex-start", gap: 10 }}>
               <span style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, background: revealed && isCorrect ? "rgba(22,163,74,0.3)" : revealed && isSelected ? "rgba(220,38,38,0.3)" : "rgba(255,255,255,0.06)", color: revealed && isCorrect ? "#4ade80" : revealed && isSelected ? "#f87171" : "var(--text-muted)" }}>
                 {revealed && isCorrect ? "✓" : revealed && isSelected ? "✗" : letter}
               </span>
-              <span style={{ flex: 1 }}><MathText text={optContent || opt} /></span>
+              <span style={{ flex: 1 }}><MathText text={optContent} /></span>
             </button>
           );
         })}
