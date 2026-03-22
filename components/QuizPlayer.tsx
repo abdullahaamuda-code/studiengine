@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import MathText from "./MathText";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 
 interface Question {
   id: number;
@@ -19,9 +19,10 @@ interface QuizPlayerProps {
   userId?: string;
   isPremium?: boolean;
   onComplete?: () => void;
+  notice?: string;
 }
 
-export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete }: QuizPlayerProps) {
+export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete, notice }: QuizPlayerProps) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -46,14 +47,9 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
       if (!revealed) {
         const map: Record<string, number> = { a: 0, b: 1, c: 2, d: 3 };
         const idx = map[e.key.toLowerCase()];
-        if (idx !== undefined && q.options[idx]) {
-          pick(q.options[idx]);
-        }
+        if (idx !== undefined && q.options[idx]) pick(q.options[idx]);
       } else {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault();
-          next();
-        }
+        if (e.key === " " || e.key === "Enter") { e.preventDefault(); next(); }
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -72,21 +68,7 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
     } catch (e) { console.error("Failed to save history:", e); }
   }
 
-  async function getExplanation(q: any, userQ: string) {
-    setExplaining(true); setExplainText("");
-    try {
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q.question, options: q.options, answer: q.answer, explanation: q.explanation, userQuestion: userQ }),
-      });
-      const data = await res.json();
-      setExplainText(data.explanation || data.error || "Could not get explanation.");
-    } catch { setExplainText("Network error. Please try again."); }
-    setExplaining(false);
-  }
-
-    function pick(opt: string) {
+  function pick(opt: string) {
     if (revealed) return;
     setSelected(opt);
     setRevealed(true);
@@ -110,6 +92,26 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
     setRevealed(false);
   }
 
+  async function getExplanation(rq: Question) {
+    setExplaining(true); setExplainText("");
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: rq.question,
+          options: rq.options,
+          answer: rq.answer,
+          explanation: rq.explanation,
+          userQuestion: explainQ || "Please explain this in detail with full working and reasoning.",
+        }),
+      });
+      const data = await res.json();
+      setExplainText(data.explanation || data.error || "Could not get explanation.");
+    } catch { setExplainText("Network error. Please try again."); }
+    setExplaining(false);
+  }
+
   if (done) {
     const finalPct = Math.round((score / total) * 100);
     const grade = finalPct >= 80
@@ -126,7 +128,7 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
           <div style={{ fontSize: 38, fontWeight: 800, fontFamily: "var(--font-display)", color: grade.color, marginBottom: 4 }}>{score}/{total}</div>
           <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "var(--font-display)", color: "var(--text-primary)", marginBottom: 6 }}>{grade.label}</div>
           <p style={{ fontSize: 13, color: "var(--text-secondary)", maxWidth: 280, margin: "0 auto" }}>{grade.msg}</p>
-          <div style={{ position: "relative", width: 100, height: 100, margin: "20px auto 0" }}>
+          <div style={{ position: "relative", width: 100, height: 100, margin: "16px auto 0" }}>
             <svg width="100" height="100" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
               <circle cx="50" cy="50" r="42" fill="none" stroke={grade.color} strokeWidth="7" strokeLinecap="round"
@@ -138,66 +140,96 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
               {finalPct}%
             </div>
           </div>
-          {isPremium && saved && <p style={{ fontSize: 11, color: "#4ade80", marginTop: 12 }}>✓ Saved to your history</p>}
+          {isPremium && saved && <p style={{ fontSize: 11, color: "#4ade80", marginTop: 10 }}>✓ Saved to history</p>}
         </div>
 
-        {/* Extensive review */}
-        <div className="glass" style={{ borderRadius: 16, padding: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-              Extensive Review
-            </p>
-            {!isPremium && (
-              <span style={{ fontSize: 10, background: "rgba(251,191,36,0.12)", border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24", padding: "3px 8px", borderRadius: 20 }}>
-                ⚡ Premium — full access
-              </span>
-            )}
+        {/* Quick review — wrong ones */}
+        {wrongOnes.length > 0 && (
+          <div className="glass-static" style={{ borderRadius: 12, padding: 16 }}>
+            <p style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>Missed ({wrongOnes.length})</p>
+            {wrongOnes.map((wq, i) => (
+              <div key={i} style={{ padding: "7px 0", borderBottom: i < wrongOnes.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
+                <p style={{ fontSize: 12, color: "var(--text-primary)", marginBottom: 3 }}><MathText text={wq.question.slice(0, 80) + (wq.question.length > 80 ? "..." : "")} /></p>
+                <p style={{ fontSize: 11, color: "#4ade80" }}>✓ {wq.answer}. <MathText text={wq.options?.find(o => o.charAt(0).toUpperCase() === wq.answer?.toUpperCase())?.slice(3) || ""} /></p>
+              </div>
+            ))}
           </div>
+        )}
 
-          {questions.map((rq, i) => {
-            const isLocked = !isPremium && i >= 3;
-            const userWasWrong = wrongOnes.some(w => w.id === rq.id);
+        {/* Buttons */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {isPremium && (
+            <button onClick={() => { setShowReview(r => !r); setExplainIdx(null); setExplainText(""); }} style={{
+              width: "100%", padding: "13px 0", borderRadius: 12, fontSize: 14,
+              background: showReview ? "rgba(251,191,36,0.2)" : "linear-gradient(135deg,rgba(251,191,36,0.15),rgba(234,179,8,0.1))",
+              border: "1px solid rgba(251,191,36,0.4)", color: "#fbbf24",
+              cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: 600,
+            }}>
+              {showReview ? "Hide Review" : "📖 Extensive Review ⚡"}
+            </button>
+          )}
+          {!isPremium && (
+            <div style={{ padding: "12px 14px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 12, textAlign: "center" }}>
+              <p style={{ fontSize: 12, color: "#fbbf24", margin: 0 }}>⚡ Upgrade Premium for full review + AI explanations</p>
+            </div>
+          )}
+          <button className="btn-primary" onClick={onReset} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>← New CBT</button>
+        </div>
 
-            return (
-              <div key={i} className={isLocked ? "review-locked" : ""} style={{
-                padding: "12px 0",
-                borderBottom: i < questions.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                position: "relative",
-              }}>
+        {/* Extensive Review Panel */}
+        {showReview && isPremium && (
+          <div className="animate-in">
+            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14, textTransform: "uppercase", letterSpacing: "0.06em" }}>All Questions</p>
+            {questions.map((rq, i) => (
+              <div key={i} style={{ background: "rgba(8,20,40,0.5)", border: "1px solid rgba(56,139,253,0.12)", borderRadius: 12, padding: "12px 14px", marginBottom: 10 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: userWasWrong ? "#f87171" : "#4ade80", flexShrink: 0, marginTop: 2 }}>
-                    {userWasWrong ? "✗" : "✓"}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: wrongOnes.some(w => w.id === rq.id) ? "#f87171" : "#4ade80", flexShrink: 0, marginTop: 2 }}>
+                    {wrongOnes.some(w => w.id === rq.id) ? "✗" : "✓"}
                   </span>
-                  <p style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.55 }}>
+                  <p style={{ fontSize: 13, color: "var(--text-primary)", lineHeight: 1.55, margin: 0 }}>
                     <MathText text={rq.question} />
                   </p>
                 </div>
-                <div style={{ paddingLeft: 18 }}>
-                  <p style={{ fontSize: 12, color: "#4ade80", marginBottom: 4 }}>
-                    Answer: {rq.answer}. <MathText text={rq.options.find(o => o.charAt(0).toUpperCase() === rq.answer.toUpperCase())?.slice(3) || ""} />
+                <p style={{ fontSize: 12, color: "#4ade80", margin: "0 0 4px 18px" }}>
+                  ✓ {rq.answer}. <MathText text={rq.options?.find(o => o.charAt(0).toUpperCase() === rq.answer?.toUpperCase())?.slice(3) || ""} />
+                </p>
+                {rq.explanation && (
+                  <p style={{ fontSize: 12, color: "var(--text-secondary)", margin: "0 0 8px 18px", lineHeight: 1.5 }}>
+                    <MathText text={rq.explanation} />
                   </p>
-                  {rq.explanation && (
-                    <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                      <MathText text={rq.explanation} />
-                    </p>
-                  )}
-                </div>
+                )}
+
+                {/* AI Explain */}
+                {explainIdx !== i ? (
+                  <button onClick={() => { setExplainIdx(i); setExplainText(""); setExplainQ(""); }}
+                    style={{ marginLeft: 18, fontSize: 11, padding: "4px 12px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(59,130,246,0.25)", borderRadius: 20, color: "#60a5fa", cursor: "pointer", fontFamily: "var(--font-body)" }}>
+                    🤖 Ask AI to explain
+                  </button>
+                ) : (
+                  <div style={{ marginTop: 8, marginLeft: 18 }}>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                      <input value={explainQ} onChange={e => setExplainQ(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && getExplanation(rq)}
+                        placeholder="Ask something specific or press Enter for full explanation..."
+                        style={{ flex: 1, background: "rgba(5,15,35,0.8)", border: "1px solid rgba(56,139,253,0.2)", borderRadius: 8, color: "var(--text-primary)", padding: "7px 10px", fontSize: 12, outline: "none", fontFamily: "var(--font-body)" }} />
+                      <button onClick={() => getExplanation(rq)} disabled={explaining}
+                        style={{ padding: "7px 14px", background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, cursor: "pointer", fontFamily: "var(--font-body)", whiteSpace: "nowrap" }}>
+                        {explaining ? "..." : "Ask →"}
+                      </button>
+                      <button onClick={() => { setExplainIdx(null); setExplainText(""); }}
+                        style={{ padding: "7px 10px", background: "none", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}>✕</button>
+                    </div>
+                    {explainText && (
+                      <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                        {explainText}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            );
-          })}
-
-          {/* Lock overlay for non-premium */}
-          {!isPremium && questions.length > 3 && (
-            <div style={{ marginTop: 12, padding: "14px 16px", background: "linear-gradient(135deg,rgba(234,179,8,0.08),rgba(251,191,36,0.05))", border: "1px solid rgba(234,179,8,0.2)", borderRadius: 12, textAlign: "center" }}>
-              <p style={{ fontSize: 13, color: "#fbbf24", marginBottom: 4, fontWeight: 600 }}>
-                🔒 {questions.length - 3} more questions locked
-              </p>
-              <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Upgrade to Premium for full review of all questions</p>
-            </div>
-          )}
-        </div>
-
-        <button className="btn-primary" onClick={onReset} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>← New CBT</button>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -206,6 +238,13 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
 
   return (
     <div>
+      {/* Notice */}
+      {notice && (
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, fontSize: 12, color: "#fbbf24" }}>
+          ℹ️ {notice}
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>{current + 1} / {total}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -217,7 +256,7 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
         <div className="progress-bar" style={{ width: `${pct}%` }} />
       </div>
       <p style={{ fontSize: 10, color: "var(--text-muted)", textAlign: "right", marginBottom: 20 }}>
-        Press A B C D to answer • Space/Enter for next
+        Press A B C D · Space/Enter for next
       </p>
 
       <div key={animKey} className="animate-in glass" style={{ borderRadius: 16, padding: "20px 18px", marginBottom: 14 }}>
@@ -227,7 +266,6 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
         {q.options.map((opt) => {
-          // Only strip label if option genuinely starts with A. B. C. or D. (letter + period + space)
           const hasLabel = /^[ABCD]\.\s/i.test(opt);
           const letter = hasLabel ? opt.charAt(0).toUpperCase() : ["A","B","C","D"][q.options.indexOf(opt)] || "?";
           const optContent = hasLabel ? opt.slice(3).trim() : opt;
