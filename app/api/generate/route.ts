@@ -25,14 +25,15 @@ Use plain text for math: cos(x) not \\\\cos x, theta not \\\\theta, sqrt(x) not 
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
 Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
 
-  if (type === "pq_quiz") return `You are a Nigerian exam quiz generator. Convert the given past exam questions into a quiz.
+  if (type === "pq_quiz") return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given past questions.
 CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
 Use plain text for math: cos(x) not \\\\cos x, theta not \\\\theta, sqrt(x) not \\\\sqrt{x}.
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
-Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field | extract up to ${count} questions`;
+Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
 
   return "";
 }
+
 
 const VISION_SUFFIX = `\nThese are Nigerian exam paper pages. Extract every question visible.
 Write math in plain text: cos(x), sin(theta), x^2, sqrt(x). No LaTeX.
