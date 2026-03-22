@@ -18,6 +18,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
   const [progress, setProgress] = useState(0);
+  const [foundCount, setFoundCount] = useState<number | null>(null);
   const [usageInfo, setUsageInfo] = useState<{quizCount:number} | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
@@ -34,7 +35,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
     try {
       const usage = await getUsage(userId);
       if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
+        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade to Premium for unlimited access.`);
         setShowUpgrade(true); setLoading(false); return;
       }
       if (images?.length && !canScanPDF(usage, isGuest)) {
