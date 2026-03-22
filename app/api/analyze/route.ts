@@ -58,7 +58,7 @@ const EXTRACT_PROMPT = `Extract all questions, topics, and years visible on thes
 
 
 async function geminiExtract(apiKey: string, images: string[], prompt: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   const parts: any[] = images.map(b64 => ({ inline_data: { mime_type: "image/jpeg", data: b64 } }));
   parts.push({ text: prompt });
   const res = await fetch(url, {
@@ -81,8 +81,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
 
-    const analyzeKey = process.env.GROQ_ANALYZE_KEY || process.env.GROQ_API_KEY;
-    const visionKey = process.env.GROQ_VISION_KEY || process.env.GROQ_API_KEY;
+    // All available keys for fallback
+    const allKeys = [
+      process.env.GROQ_ANALYZE_KEY,
+      process.env.GROQ_TEXT_KEY,
+      process.env.GROQ_VISION_KEY,
+      process.env.GROQ_PREMIUM_KEY,
+      process.env.GROQ_API_KEY,
+    ].filter(Boolean) as string[];
+    const uniqueKeys = [...new Set(allKeys)];
+    const analyzeKey = uniqueKeys[0] || "";
+    const visionKey = process.env.GROQ_VISION_KEY || uniqueKeys[0] || "";
 
     let textToAnalyze = "";
 
