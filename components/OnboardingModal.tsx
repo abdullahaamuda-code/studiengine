@@ -67,9 +67,9 @@ export default function OnboardingModal() {
           {/* Features grid — 2 cols on wider screens */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 22 }}>
             {[
-              { icon: "📝", title: "Notes → Quiz", desc: "Paste notes or upload a PDF, get instant CBT practice questions" },
+              { icon: "📝", title: "Notes → CBT", desc: "Paste notes or upload a PDF, get instant CBT practice questions" },
               { icon: "🔍", title: "PQ Analyzer", desc: "Spot repeated topics and patterns across years" },
-              { icon: "⚡", title: "PQ → Quiz", desc: "Convert past questions into an interactive quiz" },
+              { icon: "⚡", title: "PQ → CBT", desc: "Convert past questions into an interactive CBT Practice" },
               { icon: "🧮", title: "Calculator", desc: "Built-in calculator for math and science" },
             ].map(f => (
               <div key={f.title} style={{
