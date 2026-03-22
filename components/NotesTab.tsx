@@ -34,7 +34,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
     try {
       const usage = await getUsage(userId);
       if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} quizzes for today. Upgrade for unlimited access.`);
+        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
         setShowUpgrade(true); setLoading(false); return;
       }
       const trimmedImages = images ? images.slice(0, limits.maxPages) : undefined;
