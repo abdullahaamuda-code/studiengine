@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
 interface Stats {
   totalUsers: number; guestUsers: number; registeredUsers: number;
@@ -8,17 +9,34 @@ interface Stats {
 }
 
 export default function StatsTab() {
-  const { user } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!user) return;
-    fetch("/api/admin/stats", { headers: { "x-admin-uid": user.uid } })
-      .then(r => r.json()).then(d => { if (d.error) throw new Error(d.error); setStats(d); })
-      .catch(e => setError(e.message)).finally(() => setLoading(false));
-  }, [user]);
+    async function load() {
+      try {
+        const [usageSnap, feedbackSnap] = await Promise.all([
+          getDocs(collection(db, "usage")),
+          getDocs(collection(db, "feedback")),
+        ]);
+        const users = usageSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+        const totalUsers = users.length;
+        const guestUsers = users.filter(u => u.id.startsWith("guest_")).length;
+        setStats({
+          totalUsers,
+          guestUsers,
+          registeredUsers: totalUsers - guestUsers,
+          premiumUsers: users.filter(u => u.isPremium).length,
+          totalCBTs: users.reduce((s, u) => s + (u.allTimeQuizCount || 0), 0),
+          todayCBTs: users.reduce((s, u) => s + (u.quizCount || 0), 0),
+          totalFeedback: feedbackSnap.size,
+        });
+      } catch (e: any) { setError(e.message); }
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   if (loading) return <p style={{ color: "#475569", fontSize: 13 }}>Loading analytics...</p>;
   if (error) return <p style={{ color: "#f87171", fontSize: 13 }}>⚠️ {error}</p>;
@@ -48,13 +66,9 @@ export default function StatsTab() {
           </div>
         ))}
       </div>
-
       <div style={{ background: "rgba(8,20,40,0.6)", border: "1px solid rgba(56,139,253,0.12)", borderRadius: 14, padding: "18px 20px" }}>
         <p style={{ fontSize: 12, color: "#475569", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.06em" }}>Conversion Funnel</p>
-        {[
-          { label: "Guest → Registered", pct: regPct, color: "#4ade80" },
-          { label: "Free → Premium", pct: premPct, color: "#fbbf24" },
-        ].map(r => (
+        {[{ label: "Guest → Registered", pct: regPct, color: "#4ade80" }, { label: "Free → Premium", pct: premPct, color: "#fbbf24" }].map(r => (
           <div key={r.label} style={{ marginBottom: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
               <span style={{ fontSize: 13, color: "#94a3b8" }}>{r.label}</span>
