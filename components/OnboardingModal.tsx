@@ -40,11 +40,7 @@ export default function OnboardingModal() {
           borderRadius: "20px 20px 0 0",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#2563eb,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-              </svg>
-            </div>
+            <img src="/studiengine-logo.svg" width="36" height="36" style={{ borderRadius: 10 }} />
             <span style={{ fontSize: 16, fontWeight: 800, fontFamily: "var(--font-display)" }} className="gradient-text">Studiengine</span>
           </div>
           <button onClick={dismiss} style={{
