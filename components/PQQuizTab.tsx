@@ -64,7 +64,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
     setLoading(false); setProgress(0);
   }
 
-  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); }} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
+  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
 
   return (
     <div className="animate-in">
