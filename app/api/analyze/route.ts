@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       process.env.GROQ_PREMIUM_KEY,
       process.env.GROQ_API_KEY,
     ].filter(Boolean) as string[];
-    const uniqueKeys = Array.from(new Set(allKeys));
+    const uniqueKeys = allKeys.filter((k, i) => allKeys.indexOf(k) === i);
     const analyzeKey = uniqueKeys[0] || "";
     const visionKey = process.env.GROQ_VISION_KEY || uniqueKeys[0] || "";
 
