@@ -30,6 +30,11 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
   const [wrongOnes, setWrongOnes] = useState<Question[]>([]);
   const [animKey, setAnimKey] = useState(0);
   const [saved, setSaved] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [explainIdx, setExplainIdx] = useState<number | null>(null);
+  const [explainQ, setExplainQ] = useState("");
+  const [explainText, setExplainText] = useState("");
+  const [explaining, setExplaining] = useState(false);
 
   const q = questions[current];
   const total = questions.length;
@@ -67,7 +72,21 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
     } catch (e) { console.error("Failed to save history:", e); }
   }
 
-  function pick(opt: string) {
+  async function getExplanation(q: any, userQ: string) {
+    setExplaining(true); setExplainText("");
+    try {
+      const res = await fetch("/api/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q.question, options: q.options, answer: q.answer, explanation: q.explanation, userQuestion: userQ }),
+      });
+      const data = await res.json();
+      setExplainText(data.explanation || data.error || "Could not get explanation.");
+    } catch { setExplainText("Network error. Please try again."); }
+    setExplaining(false);
+  }
+
+    function pick(opt: string) {
     if (revealed) return;
     setSelected(opt);
     setRevealed(true);
