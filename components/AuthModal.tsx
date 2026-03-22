@@ -52,11 +52,7 @@ export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModal
   const Logo = () => (
     <div style={{ textAlign: "center", marginBottom: 20 }}>
       <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#2563eb,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-          </svg>
-        </div>
+<img src="/studiengine-logo.svg" width="28" height="28" style={{ borderRadius: 7 }} />
         <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)" }} className="gradient-text">Studiengine</span>
       </div>
     </div>
