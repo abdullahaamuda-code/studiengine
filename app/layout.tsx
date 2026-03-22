@@ -4,9 +4,6 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/components/Toast";
 
-import type { Metadata } from "next";
-import "./globals.css";
-
 export const metadata: Metadata = {
   title: "Studiengine",
   description: "Studiengine",
@@ -14,7 +11,7 @@ export const metadata: Metadata = {
   icons: {
     // main favicon / icon
     icon: "/studiengine-logo.svg",
-    // if you still have the old 192x192 icon
+    // apple touch icon (what you had before)
     apple: "/icon-192.png",
   },
   appleWebApp: {
@@ -37,30 +34,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
-}
-
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-<head>
-  <meta name="theme-color" content="#2563eb" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Studiengine" />
-  <link rel="apple-touch-icon" href="/icon-192.png" />
-  <link rel="manifest" href="/manifest.json" />
-</head>
-
       <body>
         <ThemeProvider>
           <AuthProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
+            <ToastProvider>{children}</ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
