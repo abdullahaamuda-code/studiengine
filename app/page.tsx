@@ -6,6 +6,7 @@ import AuthModal from "@/components/AuthModal";
 import Calculator from "@/components/Calculator";
 import OnboardingModal from "@/components/OnboardingModal";
 import InstallPrompt from "@/components/InstallPrompt";
+import FeedbackButton from "@/components/FeedbackButton";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -142,6 +143,7 @@ export default function Home() {
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       <OnboardingModal />
       <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
+      {isLoggedIn && <FeedbackButton />}
     </div>
   );
 }
