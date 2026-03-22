@@ -7,13 +7,14 @@ const BATCH_SIZE = 5;
 
 function parseAIJson(raw: string): any {
   let clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-  const arrMatch = clean.match(/\[[\s\S]*\]/);
-  const objMatch = clean.match(/\{[\s\S]*\}/);
-  const jsonStr = arrMatch?.[0] ?? objMatch?.[0];
-  if (!jsonStr) return null;
-  try { return JSON.parse(jsonStr); } catch (_) {}
-  const fixed = jsonStr.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
-  try { return JSON.parse(fixed); } catch (_) {}
+  const start = clean.indexOf("[");
+  const end = clean.lastIndexOf("]");
+  if (start !== -1 && end !== -1 && end > start) {
+    const jsonStr = clean.slice(start, end + 1);
+    try { return JSON.parse(jsonStr); } catch (_) {}
+    const fixed = jsonStr.replace(/\\(?!["\\/bfnrtu])/g, "\\\\");
+    try { return JSON.parse(fixed); } catch (_) {}
+  }
   return null;
 }
 
@@ -21,26 +22,28 @@ function buildSystemPrompt(type: string, count: number): string {
   if (type === "notes_quiz") return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
 CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
 Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation of why this answer is correct"}]
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation"}]
 Rules: options start with A. B. C. D. | answer is single letter A B C D | always include explanation field`;
 
-  if (type === "pq_quiz") return `You are converting Nigerian past exam questions (JAMB, WAEC, NECO, university) into a quiz.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no LaTeX backslashes.
+  if (type === "pq_quiz") return `You are a Nigerian exam quiz generator. Your job is to ALWAYS produce a JSON array of quiz questions.
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no LaTeX backslashes. NEVER refuse or explain.
 Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"1-2 sentence explanation","year":"2019 WAEC or empty string"}]
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"why this answer is correct","year":""}]
 Rules:
-- If the question already has A B C D options listed, use them exactly as written
-- If no options exist, generate 4 plausible options
-- answer field is a SINGLE letter only: A, B, C, or D — nothing else
-- always include the explanation field
-- extract as many questions as visible, up to ${count}`;
+- Read ALL text visible on the pages — questions, options, numbers, everything
+- If you see questions with A B C D options, use them exactly
+- If you see questions WITHOUT options, CREATE 4 plausible options yourself
+- If the content is unclear, still generate questions based on what you can read
+- ALWAYS return a JSON array — never return plain text or refuse
+- answer is a SINGLE letter: A, B, C, or D
+- extract up to ${count} questions`;
 
   return "";
 }
 
-const VISION_SUFFIX = `\nThese are scanned exam pages. Read all questions carefully.
-No LaTeX backslashes. Write math in plain text: cos(x), sin(theta), x^2, sqrt(x).
-Always include the explanation field. Return only the JSON array.`;
+const VISION_SUFFIX = `\nThese are Nigerian exam paper pages. Extract every question visible.
+Write math in plain text: cos(x), sin(theta), x^2, sqrt(x). No LaTeX.
+You MUST return a JSON array starting with [ even if the scan is unclear. Never refuse.`;
 
 async function callGroq(apiKey: string, model: string, messages: any[], maxTokens = 4000) {
   const res = await fetch(GROQ_URL, {
@@ -56,25 +59,35 @@ async function callGroq(apiKey: string, model: string, messages: any[], maxToken
   return data.choices[0].message.content as string;
 }
 
-async function processVisionBatches(apiKey: string, systemPrompt: string, images: string[], type: string, count: number): Promise<any[]> {
+async function processVisionBatches(apiKey: string, systemPrompt: string, images: any, type: string, count: number): Promise<any[]> {
+  const imageList: string[] = Array.isArray(images) ? images : (images?.images ?? []);
+  if (imageList.length === 0) return [];
+
   const batches: string[][] = [];
-  for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
+  for (let i = 0; i < imageList.length; i += BATCH_SIZE) batches.push(imageList.slice(i, i + BATCH_SIZE));
 
   const allQuestions: any[] = [];
 
   for (let b = 0; b < batches.length; b++) {
     const batch = batches[b];
-    const imageContent = batch.map((b64: string) => ({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` } }));
-    const batchPrompt = type === "pq_quiz"
-      ? `Extract all questions you can find on these ${batch.length} page(s). Return only the JSON array.`
-      : `Generate up to ${Math.ceil(count / batches.length)} questions from these ${batch.length} page(s). Return only the JSON array.`;
+    const imageContent = batch.map((b64: string) => ({
+      type: "image_url",
+      image_url: { url: `data:image/jpeg;base64,${b64}` },
+    }));
+
     try {
       const raw = await callGroq(apiKey, VISION_MODEL, [
         { role: "system", content: systemPrompt + VISION_SUFFIX },
-        { role: "user", content: [...imageContent, { type: "text", text: batchPrompt }] },
+        {
+          role: "user", content: [
+            ...imageContent,
+            { type: "text", text: `Extract all questions from these ${batch.length} page(s) and return as a JSON array. Start with [` },
+          ],
+        },
       ]);
+      console.log(`[vision batch ${b + 1}/${batches.length}] raw (first 200):`, raw.slice(0, 200));
       const parsed = parseAIJson(raw);
-      if (Array.isArray(parsed)) {
+      if (Array.isArray(parsed) && parsed.length > 0) {
         parsed.forEach((q: any, i: number) => { q.id = allQuestions.length + i + 1; });
         allQuestions.push(...parsed);
       }
@@ -100,14 +113,15 @@ export async function POST(req: NextRequest) {
     if (images && images.length > 0) {
       if (!visionKey) return NextResponse.json({ error: "Vision API key not configured" }, { status: 500 });
       const questions = await processVisionBatches(visionKey, systemPrompt, images, type, count);
-      if (questions.length === 0) return NextResponse.json({ error: "Could not extract questions from PDF. Try a clearer scan." }, { status: 422 });
+      if (questions.length === 0) {
+        return NextResponse.json({ error: "The AI couldn't read questions from this scan. Try typing the questions manually instead." }, { status: 422 });
+      }
       return NextResponse.json({ questions: questions.slice(0, count) });
     } else {
       if (!textKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 });
-      
-      // For pq_quiz text, add a user message that's explicit about format
+
       const userMessage = type === "pq_quiz"
-        ? `Convert these past questions into a quiz. Return ONLY the JSON array, nothing else:\n\n${content}`
+        ? `Convert these past questions into a quiz. Return ONLY the JSON array:\n\n${content}`
         : content;
 
       const raw = await callGroq(textKey, TEXT_MODEL, [
@@ -116,10 +130,8 @@ export async function POST(req: NextRequest) {
       ]);
 
       console.log("[generate] raw (first 200):", raw.slice(0, 200));
-
       const questions = parseAIJson(raw);
       if (!questions || !Array.isArray(questions)) {
-        console.error("[generate] parse failed. Full raw:", raw);
         return NextResponse.json({ error: "Could not parse AI response. Try again." }, { status: 422 });
       }
       return NextResponse.json({ questions: questions.slice(0, count) });
