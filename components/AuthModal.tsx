@@ -52,7 +52,11 @@ export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModal
   const Logo = () => (
     <div style={{ textAlign: "center", marginBottom: 20 }}>
       <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-<img src="/studiengine-logo.svg" width="28" height="28" style={{ borderRadius: 7 }} />
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#2563eb,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
         <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)" }} className="gradient-text">Studiengine</span>
       </div>
     </div>
@@ -75,7 +79,7 @@ export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModal
               <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>FREE ACCOUNT</p>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <span style={{ color: "#4ade80", fontSize: 12 }}>✓</span>
-                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>4 quizzes per day — 2× more than guest</span>
+                <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>4 CBTs per day — 2× more than guest</span>
               </div>
             </div>
             <button className="btn-ghost" onClick={() => setMode("signin")} style={{ padding: "11px 0", borderRadius: 12, fontSize: 14 }}>Sign In</button>
@@ -91,7 +95,7 @@ export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModal
               border: "1px solid rgba(139,92,246,0.4)", color: "#c4b5fd", transition: "all 0.2s",
             }}>
               Continue as Guest
-              <span style={{ fontSize: 11, color: "rgba(196,181,253,0.7)", marginLeft: 6 }}>(2 quizzes/day)</span>
+              <span style={{ fontSize: 11, color: "rgba(196,181,253,0.7)", marginLeft: 6 }}>(2 CBTs/day)</span>
             </button>
           </div>
         )}
@@ -103,7 +107,7 @@ export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModal
             </h2>
             {mode === "signup" && (
               <p style={{ fontSize: 12, color: "#4ade80", background: "rgba(5,150,105,0.08)", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 8, padding: "7px 12px" }}>
-                ✓ Free forever — 4 quizzes/day, no credit card needed
+                ✓ Free forever — 4 CBTs/day, no credit card needed
               </p>
             )}
             <input className="input-glass" type="email" placeholder="Email address" value={email}
