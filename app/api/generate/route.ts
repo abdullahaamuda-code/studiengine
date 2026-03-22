@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const TEXT_MODEL = "llama-3.3-70b-versatile";
-const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const BATCH_SIZE = 5;
 const MAX_CHARS = 6000;
 
@@ -33,50 +33,158 @@ function normalizeQuestions(qs: any[]): any[] {
   });
 }
 
-function friendlyError(msg: string): string {
-  if (msg.includes("too large") || msg.includes("TPM") || msg.includes("tokens")) return "Content too long. Try pasting fewer questions.";
-  if (msg.includes("429") || msg.includes("rate limit")) return "AI is busy. Please wait a few seconds and try again.";
-  if (msg.includes("401") || msg.includes("Invalid API") || msg.includes("api_key")) return "Server configuration error. Please contact support.";
-  return `Error: ${msg.slice(0, 100)}`;
+// All Groq keys for text fallback
+function getGroqKeys(): string[] {
+  return [
+    process.env.GROQ_TEXT_KEY,
+    process.env.GROQ_ANALYZE_KEY,
+    process.env.GROQ_VISION_KEY,
+    process.env.GROQ_PREMIUM_KEY,
+    process.env.GROQ_API_KEY,
+  ].filter(Boolean) as string[];
 }
 
-async function groq(apiKey: string, model: string, messages: any[], maxTokens = 3000, retries = 4): Promise<string> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    const res = await fetch(GROQ_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, temperature: 0.3, max_tokens: maxTokens, messages }),
-    });
-    if (res.status === 429 || res.status === 503) {
-      const wait = attempt * 5000; // 5s, 10s, 15s, 20s
-      console.log(`[generate] rate limited, waiting ${wait}ms (attempt ${attempt})`);
-      if (attempt < retries) { await new Promise(r => setTimeout(r, wait)); continue; }
-      throw new Error("AI is busy. Please wait and try again.");
-    }
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as any)?.error?.message || `Groq ${res.status}`);
-    }
-    return (await res.json()).choices[0].message.content as string;
+async function callGroqKey(key: string, messages: any[], maxTokens = 3000): Promise<string> {
+  const res = await fetch(GROQ_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({ model: TEXT_MODEL, temperature: 0.3, max_tokens: maxTokens, messages }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.error?.message || `Groq ${res.status}`);
   }
-  throw new Error("Failed after retries");
+  return (await res.json()).choices[0].message.content as string;
 }
 
-// Try multiple keys in sequence — if one is rate limited, try the next
-async function groqWithFallback(keys: string[], model: string, messages: any[], maxTokens = 3000): Promise<string> {
-  const validKeys = keys.filter(Boolean);
-  for (const key of validKeys) {
+async function callText(messages: any[], maxTokens = 3000): Promise<string> {
+  const keys = getGroqKeys();
+  for (const key of keys) {
     try {
-      return await groq(key, model, messages, maxTokens, 2);
+      return await callGroqKey(key, messages, maxTokens);
     } catch (e: any) {
-      if (e.message.includes("busy") || e.message.includes("rate") || e.message.includes("429")) {
-        console.log("[generate] key rate limited, trying next key...");
-        continue;
-      }
-      throw e; // Non-rate-limit error, don't try next key
+      const isRateLimit = e.message.includes("429") || e.message.includes("rate") || e.message.includes("busy");
+      console.log(`[generate] text key failed: ${e.message.slice(0,60)}, isRateLimit: ${isRateLimit}`);
+      if (!isRateLimit) throw e;
+      await new Promise(r => setTimeout(r, 2000));
     }
   }
-  throw new Error("AI is busy. Please wait a few seconds and try again.");
+  throw new Error("AI is busy. Please try again in a moment.");
+}
+
+// Gemini vision extraction
+async function geminiVision(apiKey: string, images: string[], prompt: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const parts: any[] = [
+    ...images.map(b64 => ({ inline_data: { mime_type: "image/jpeg", data: b64 } })),
+    { text: prompt }
+  ];
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.1 },
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    console.error("[generate] Gemini error:", JSON.stringify(data).slice(0, 200));
+    throw new Error(data?.error?.message || `Gemini ${res.status}`);
+  }
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    console.error("[generate] Gemini empty response:", JSON.stringify(data).slice(0, 200));
+    throw new Error("Gemini returned empty response");
+  }
+  return text;
+}
+
+// OpenRouter vision fallback (free tier)
+async function openRouterVision(apiKey: string, images: string[], prompt: string): Promise<string> {
+  const imageContent = images.map(b64 => ({
+    type: "image_url",
+    image_url: { url: `data:image/jpeg;base64,${b64}` }
+  }));
+  const res = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://studiengine.vercel.app",
+      "X-Title": "Studiengine",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-flash-1.5",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: [...imageContent, { type: "text", text: prompt }] }],
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    console.error("[generate] OpenRouter error:", JSON.stringify(data).slice(0, 200));
+    throw new Error(data?.error?.message || `OpenRouter ${res.status}`);
+  }
+  return data.choices[0].message.content as string;
+}
+
+// Groq vision fallback
+async function groqVision(images: string[], prompt: string): Promise<string> {
+  const keys = getGroqKeys();
+  const imageContent = images.map(b64 => ({
+    type: "image_url",
+    image_url: { url: `data:image/jpeg;base64,${b64}` }
+  }));
+  for (const key of keys) {
+    try {
+      const res = await fetch(GROQ_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          max_tokens: 2000,
+          temperature: 0.2,
+          messages: [{ role: "user", content: [...imageContent, { type: "text", text: prompt }] }],
+        }),
+      });
+      if (res.status === 429) { await new Promise(r => setTimeout(r, 3000)); continue; }
+      if (!res.ok) continue;
+      const data = await res.json();
+      return data.choices[0].message.content as string;
+    } catch { continue; }
+  }
+  throw new Error("All vision APIs rate limited");
+}
+
+// Main vision extractor — tries Gemini → OpenRouter → Groq
+async function extractFromImages(images: string[], prompt: string): Promise<string> {
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const orKey = process.env.OPENROUTER_API_KEY;
+
+  if (geminiKey) {
+    try {
+      console.log("[generate] trying Gemini vision...");
+      const text = await geminiVision(geminiKey, images, prompt);
+      console.log("[generate] Gemini success, chars:", text.length);
+      return text;
+    } catch (e: any) {
+      console.error("[generate] Gemini failed:", e.message);
+    }
+  }
+
+  if (orKey) {
+    try {
+      console.log("[generate] trying OpenRouter vision...");
+      const text = await openRouterVision(orKey, images, prompt);
+      console.log("[generate] OpenRouter success, chars:", text.length);
+      return text;
+    } catch (e: any) {
+      console.error("[generate] OpenRouter failed:", e.message);
+    }
+  }
+
+  console.log("[generate] trying Groq vision fallback...");
+  return groqVision(images, prompt);
 }
 
 function buildPrompt(type: string, count: number): string {
@@ -93,138 +201,65 @@ Extract up to ${count} questions. answer = single letter A/B/C/D. Always include
   return "";
 }
 
-const EXTRACT_PROMPT = `Extract ALL questions from these exam pages.
-For each question: include the question text, all options (A B C D), and mark correct answer with [CORRECT] if visible.
-For math: write fractions as (a/b), limits as lim(x->0), roots as sqrt(x), powers as x^2.
-List every single question you can see. Be thorough.`;
-
-
-// Gemini vision — much better for scanned documents, 1500 free req/day
-async function geminiExtract(apiKey: string, images: string[], prompt: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
-  const parts: any[] = images.map(b64 => ({
-    inline_data: { mime_type: "image/jpeg", data: b64 }
-  }));
-  parts.push({ text: prompt });
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts }],
-      generationConfig: { maxOutputTokens: 2000, temperature: 0.2 },
-    }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message || `Gemini ${res.status}`);
-  }
-
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-}
+const EXTRACT_PROMPT = `Extract ALL questions from these exam pages as plain text.
+For each question include: question number, full question text, all options (A B C D), and mark correct answer with [CORRECT] if visible.
+For math write: fractions as (a/b), limits as lim(x->0), roots as sqrt(x), powers as x^2.
+Extract EVERY question you can see. Be thorough.`;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { type, content, images, count = 10, isPremium = false } = body;
 
-    console.log("[generate] type:", type, "images:", images?.length || 0, "count:", count, "isPremium:", isPremium);
+    console.log("[generate] type:", type, "images:", images?.length || 0, "count:", count);
 
     if (!content?.trim() && !images?.length) {
       return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
 
     const prompt = buildPrompt(type, count);
-    if (!prompt) return NextResponse.json({ error: "Invalid type: " + type }, { status: 400 });
-
-    const textKey = process.env.GROQ_TEXT_KEY || process.env.GROQ_API_KEY;
-    const visionKey = process.env.GROQ_VISION_KEY || process.env.GROQ_API_KEY;
-    const premiumKey = process.env.GROQ_PREMIUM_KEY;
-
-    console.log("[generate] keys: text=", !!textKey, "vision=", !!visionKey, "premium=", !!premiumKey);
-
-    if (!textKey && !visionKey) {
-      console.error("[generate] No API keys configured");
-      return NextResponse.json({ error: "Server not configured. Contact support." }, { status: 500 });
-    }
-
-    const activeText = (isPremium && premiumKey) ? premiumKey : (textKey || "");
-    const activeVision = (isPremium && premiumKey) ? premiumKey : (visionKey || "");
+    if (!prompt) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
     if (images && images.length > 0) {
-      // Vision path: extract text from pages, then convert to questions
-      console.log("[generate] vision path, batches:", Math.ceil(images.length / BATCH_SIZE));
-
       const batches: string[][] = [];
       for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
 
       const extracted: string[] = [];
       for (let b = 0; b < batches.length; b++) {
-        const batch = batches[b];
-        const imgs = batch.map((b64: string) => ({
-          type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` },
-        }));
+        console.log(`[generate] extracting batch ${b+1}/${batches.length}`);
         try {
-          console.log(`[generate] extracting batch ${b+1}/${batches.length}`);
-          const geminiKey = process.env.GEMINI_API_KEY;
-          let text: string;
-          if (geminiKey) {
-            // Use Gemini — better for scanned docs, 1500 free req/day
-            text = await geminiExtract(geminiKey, batch, EXTRACT_PROMPT);
-          } else {
-            // Fallback to Groq vision
-            const allVisionKeys = [
-              process.env.GROQ_VISION_KEY,
-              process.env.GROQ_TEXT_KEY,
-              process.env.GROQ_ANALYZE_KEY,
-              process.env.GROQ_PREMIUM_KEY,
-              process.env.GROQ_API_KEY,
-            ].filter(Boolean) as string[];
-            text = await groqWithFallback(allVisionKeys, VISION_MODEL, [{
-              role: "user",
-              content: [...imgs, { type: "text", text: EXTRACT_PROMPT }],
-            }], 2000);
-          }
-          extracted.push(text);
-          console.log(`[generate] batch ${b+1} extracted ${text.length} chars`);
-          // Small delay between batches to avoid rate limiting
-          if (b < batches.length - 1) await new Promise(r => setTimeout(r, 1000));
+          const text = await extractFromImages(batches[b], EXTRACT_PROMPT);
+          if (text) extracted.push(text);
         } catch (e: any) {
-          console.error(`[generate] batch ${b+1} failed:`, e.message);
+          console.error(`[generate] batch ${b+1} all APIs failed:`, e.message);
         }
+        if (b < batches.length - 1) await new Promise(r => setTimeout(r, 500));
       }
 
       if (extracted.length === 0) {
-        return NextResponse.json({ error: "Could not read PDF pages. Try a clearer scan." }, { status: 422 });
+        return NextResponse.json({ error: "Could not read PDF. Make sure GEMINI_API_KEY is set in Vercel env vars." }, { status: 422 });
       }
 
       const combined = truncate(extracted.join("\n\n"));
-      console.log("[generate] combined text length:", combined.length, "converting to questions...");
+      console.log("[generate] total extracted chars:", combined.length, "converting to JSON...");
 
       const userMsg = type === "pq_quiz"
         ? `Convert ALL these extracted questions into a quiz JSON array:\n\n${combined}`
         : combined;
 
-      const raw = await groq(activeText, TEXT_MODEL, [
+      const raw = await callText([
         { role: "system", content: prompt },
         { role: "user", content: userMsg },
       ], 4000);
 
-      console.log("[generate] raw response length:", raw.length, "first 100:", raw.slice(0, 100));
-
       const rawQs = parseAIJson(raw);
       if (!rawQs || !rawQs.length) {
-        console.error("[generate] parse failed, raw:", raw.slice(0, 300));
-        return NextResponse.json({ error: "Could not parse questions from PDF content. Please try again." }, { status: 422 });
+        console.error("[generate] parse failed. raw:", raw.slice(0, 300));
+        return NextResponse.json({ error: "Could not parse questions. Please try again." }, { status: 422 });
       }
 
       const normalized = normalizeQuestions(rawQs);
       const totalFound = normalized.length;
-      console.log("[generate] found", totalFound, "questions, requested", count);
-
       return NextResponse.json({
         questions: normalized.slice(0, count),
         totalFound,
@@ -233,17 +268,9 @@ export async function POST(req: NextRequest) {
       });
 
     } else {
-      // Text path
-      console.log("[generate] text path, content length:", content?.length);
-
-      const safe = truncate(content);
-      const userMsg = type === "pq_quiz"
-        ? `Convert these past questions into a quiz. Return ONLY the JSON array:\n\n${safe}`
-        : safe;
-
-      const raw = await groq(activeText, TEXT_MODEL, [
+      const raw = await callText([
         { role: "system", content: prompt },
-        { role: "user", content: userMsg },
+        { role: "user", content: type === "pq_quiz" ? `Convert to quiz JSON array:\n\n${truncate(content)}` : truncate(content) },
       ], 3000);
 
       const rawQs = parseAIJson(raw);
@@ -252,19 +279,16 @@ export async function POST(req: NextRequest) {
       }
 
       const normalized = normalizeQuestions(rawQs);
-      const totalFound = normalized.length;
-
       return NextResponse.json({
         questions: normalized.slice(0, count),
-        totalFound,
+        totalFound: normalized.length,
         requested: count,
-        notice: totalFound < count ? `Generated ${totalFound} questions from this content (you selected ${count}).` : null,
+        notice: normalized.length < count ? `Generated ${normalized.length} questions (you selected ${count}).` : null,
       });
     }
 
   } catch (err: any) {
-    const msg = err?.message || String(err);
-    console.error("[generate] FATAL:", msg);
-    return NextResponse.json({ error: friendlyError(msg) }, { status: 500 });
+    console.error("[generate] FATAL:", err.message);
+    return NextResponse.json({ error: err.message?.slice(0, 120) || "Server error" }, { status: 500 });
   }
 }
