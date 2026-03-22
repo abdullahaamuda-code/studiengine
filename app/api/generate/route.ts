@@ -23,6 +23,43 @@ function parseAIJson(raw: string): any {
   return null;
 }
 
+// Force A. B. C. D. labels on all options regardless of what AI returned
+function normalizeQuestions(questions: any[]): any[] {
+  if (!Array.isArray(questions)) return [];
+  return questions.map((q, qi) => {
+    if (!q || typeof q !== "object") return q;
+    
+    // Normalize options to always have A. B. C. D. prefix
+    let options = q.options || [];
+    const LABELS = ["A", "B", "C", "D"];
+    
+    // Check if options already have proper A. B. C. D. labels
+    const hasProperLabels = options.length >= 2 && 
+      options.every((opt: string, i: number) => 
+        i < 4 && typeof opt === "string" && /^[ABCD]\.\s/i.test(opt)
+      );
+    
+    if (!hasProperLabels) {
+      // Strip any existing single-letter prefix and re-label
+      options = options.slice(0, 4).map((opt: string, i: number) => {
+        if (typeof opt !== "string") return `${LABELS[i]}. ${opt}`;
+        // Remove existing label if present (single letter + period/dot/bracket + space)
+        const stripped = opt.replace(/^[A-Za-z][.)]\s*/, "").trim();
+        return `${LABELS[i]}. ${stripped}`;
+      });
+    }
+    
+    // Normalize answer to just be A, B, C, or D
+    let answer = (q.answer || "A").toString().trim().toUpperCase();
+    // Extract just the letter if answer is like "A." or "A) option text"
+    const answerMatch = answer.match(/^([ABCD])/);
+    answer = answerMatch ? answerMatch[1] : "A";
+    
+    return { ...q, options, answer, id: q.id || qi + 1 };
+  });
+}
+
+
 function friendlyError(e: any): string {
   const msg: string = e?.message || String(e);
   if (msg.includes("too large") || msg.includes("TPM") || msg.includes("tokens")) {
@@ -143,7 +180,9 @@ export async function POST(req: NextRequest) {
       if (!visionKey) return NextResponse.json({ error: "Server configuration error. Please contact support." }, { status: 500 });
       const questions = await processVisionBatches(visionKey, systemPrompt, images, type, count);
       if (questions.length === 0) return NextResponse.json({ error: "Could not extract questions from PDF. Try a clearer scan." }, { status: 422 });
-      return NextResponse.json({ questions: questions.slice(0, count) });
+      const normalized = normalizeQuestions(questions);
+      const totalFound = normalized.length;
+      return NextResponse.json({ questions: normalized.slice(0, count), totalFound });
     } else {
       if (!textKey) return NextResponse.json({ error: "Server configuration error. Please contact support." }, { status: 500 });
       const safeContent = truncateContent(content);
@@ -154,10 +193,11 @@ export async function POST(req: NextRequest) {
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage },
       ], 3000);
-      const questions = parseAIJson(raw);
-      if (!questions || !Array.isArray(questions)) {
+      const raw_questions = parseAIJson(raw);
+      if (!raw_questions || !Array.isArray(raw_questions)) {
         return NextResponse.json({ error: "Could not generate questions. Please try again." }, { status: 422 });
       }
+      const questions = normalizeQuestions(raw_questions);
       return NextResponse.json({ questions: questions.slice(0, count) });
     }
   } catch (err: any) {
