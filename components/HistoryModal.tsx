@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, orderBy, query, limit } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, orderBy, query, limit } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import MathText from "./MathText";
 
@@ -29,6 +29,14 @@ export default function HistoryModal({ onClose }: Props) {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [userId, isPremium]);
+
+  async function deleteItem(id: string) {
+    if (!userId) return;
+    try {
+      await deleteDoc(doc(db, "users", userId, "history", id));
+      setItems(i => i.filter(x => x.id !== id));
+    } catch (e) { console.error(e); }
+  }
 
   const gradeColor = (pct: number) => pct >= 80 ? "#4ade80" : pct >= 60 ? "#fbbf24" : "#f87171";
 
@@ -90,7 +98,11 @@ export default function HistoryModal({ onClose }: Props) {
                       </p>
                     </div>
 
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <button onClick={e => { e.stopPropagation(); if (confirm("Delete this session?")) deleteItem(item.id); }}
+                      style={{ fontSize: 10, padding: "3px 8px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, color: "#f87171", cursor: "pointer" }}>Del</button>
                     <span style={{ fontSize: 12, color: "var(--text-muted)", transition: "transform 0.2s", display: "inline-block", transform: expanded === item.id ? "rotate(180deg)" : "none" }}>▾</span>
+                  </div>
                   </div>
 
                   {/* Expanded review */}
