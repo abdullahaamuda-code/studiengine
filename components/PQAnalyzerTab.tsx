@@ -41,7 +41,7 @@ export default function PQAnalyzerTab() {
     try {
       const usage = await getUsage(userId);
       if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} analyses for today. Upgrade for unlimited.`);
+        setUpgradeReason(`You've used all ${quizLimit} CBT analyses for today. Upgrade for unlimited.`);
         setShowUpgrade(true); setLoading(false); return;
       }
       if (images?.length && !canScanPDF(usage, isGuest)) {
@@ -133,7 +133,7 @@ export default function PQAnalyzerTab() {
       </p>
       {usageInfo && !isPremium && (
         <div style={{ marginBottom: 14, padding: "8px 12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 8, fontSize: 12, color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
-          <span>Quizzes today</span>
+          <span>CBTs today</span>
           <span style={{ color: usageInfo.quizCount >= quizLimit ? "#f87171" : "#4ade80", fontWeight: 600 }}>{usageInfo.quizCount} / {quizLimit}</span>
         </div>
       )}
