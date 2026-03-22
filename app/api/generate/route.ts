@@ -18,7 +18,6 @@ function parseAIJson(raw: string): any {
   return null;
 }
 
-// Both types use the same vision-friendly prompt — generate from whatever is visible
 const VISION_SYSTEM_PROMPT = (count: number) => `You are a Nigerian exam quiz AI. Generate up to ${count} MCQ questions from the content in these images.
 CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
 Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
@@ -68,7 +67,12 @@ async function callGroq(apiKey: string, model: string, messages: any[], maxToken
 
 async function processVisionBatches(apiKey: string, images: any, count: number): Promise<any[]> {
   const imageList: string[] = Array.isArray(images) ? images : (images?.images ?? []);
-  if (imageList.length === 0) return [];
+  if (imageList.length === 0) {
+    console.log("[vision] imageList is empty — images param:", typeof images, Array.isArray(images));
+    return [];
+  }
+
+  console.log(`[vision] processing ${imageList.length} pages in batches of ${BATCH_SIZE}`);
 
   const batches: string[][] = [];
   for (let i = 0; i < imageList.length; i += BATCH_SIZE) batches.push(imageList.slice(i, i + BATCH_SIZE));
@@ -93,11 +97,15 @@ async function processVisionBatches(apiKey: string, images: any, count: number):
           ],
         },
       ]);
-      console.log(`[vision batch ${b + 1}/${batches.length}] raw (first 200):`, raw.slice(0, 200));
+      // Log FULL raw for debugging
+      console.log(`[vision batch ${b + 1}/${batches.length}] FULL RAW:\n${raw}\n---END---`);
       const parsed = parseAIJson(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         parsed.forEach((q: any, i: number) => { q.id = allQuestions.length + i + 1; });
         allQuestions.push(...parsed);
+        console.log(`[vision batch ${b + 1}] parsed ${parsed.length} questions`);
+      } else {
+        console.log(`[vision batch ${b + 1}] parseAIJson returned:`, parsed);
       }
     } catch (e) { console.error(`Batch ${b + 1} failed:`, e); }
   }
@@ -108,6 +116,8 @@ export async function POST(req: NextRequest) {
   try {
     const { type, content, images, count = 10 } = await req.json();
 
+    console.log(`[generate] type=${type} hasImages=${!!images} imagesType=${typeof images} imagesIsArray=${Array.isArray(images)} imagesLength=${Array.isArray(images) ? images.length : "n/a"}`);
+
     if (!content?.trim() && !images?.length) {
       return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
@@ -115,7 +125,6 @@ export async function POST(req: NextRequest) {
     const textKey = process.env.GROQ_TEXT_KEY || process.env.GROQ_API_KEY;
     const visionKey = process.env.GROQ_VISION_KEY || process.env.GROQ_API_KEY;
 
-    // Vision path — same for both types
     if (images && images.length > 0) {
       if (!visionKey) return NextResponse.json({ error: "Vision API key not configured" }, { status: 500 });
       const questions = await processVisionBatches(visionKey, images, count);
@@ -125,7 +134,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ questions: questions.slice(0, count) });
     }
 
-    // Text path — type-specific prompt
     const systemPrompt = buildTextPrompt(type, count);
     if (!systemPrompt) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     if (!textKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 });
