@@ -18,9 +18,10 @@ interface QuizPlayerProps {
   onReset: () => void;
   userId?: string;
   isPremium?: boolean;
+  onComplete?: () => void;
 }
 
-export default function QuizPlayer({ questions, onReset, userId, isPremium }: QuizPlayerProps) {
+export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete }: QuizPlayerProps) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -79,6 +80,7 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium }: Qu
     if (current + 1 >= total) {
       saveHistory(score);
       setDone(true);
+      if (onComplete) onComplete();
       return;
     }
     setAnimKey(k => k + 1);
@@ -174,7 +176,7 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium }: Qu
           )}
         </div>
 
-        <button className="btn-primary" onClick={onReset} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>← New Quiz</button>
+        <button className="btn-primary" onClick={onReset} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>← New CBT</button>
       </div>
     );
   }
