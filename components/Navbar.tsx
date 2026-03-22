@@ -22,7 +22,11 @@ export default function Navbar() {
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-<img src="/studiengine-logo.svg" width="28" height="28" style={{ borderRadius: 7 }} />
+          <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#2563eb,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 12px rgba(37,99,235,0.4)" }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
+          </div>
           <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em" }} className="gradient-text">Studiengine</span>
         </div>
 
@@ -37,9 +41,9 @@ export default function Navbar() {
               {!isPremium && (
                 <button onClick={() => setShowUpgrade(true)} style={{ background: "linear-gradient(135deg,rgba(234,179,8,0.2),rgba(251,191,36,0.1))", border: "1px solid rgba(234,179,8,0.3)", color: "#fbbf24", fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 20, cursor: "pointer", fontFamily: "var(--font-body)", letterSpacing: "0.04em" }}>⚡ UPGRADE</button>
               )}
-              {isPremium && <span style={{ fontSize: 11, background: "rgba(37,99,235,0.15)", border: "1px solid rgba(59,130,246,0.3)", color: "#60a5fa", padding: "4px 10px", borderRadius: 20 }}>Premium</span>}
+              {isPremium && <span style={{ fontSize: 13 }} title="Premium member">👑</span>}
               <div style={{ position: "relative" }}>
-                <button onClick={() => setMenuOpen(m => !m)} style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#1e3a5f,#0f2040)", border: "1px solid rgba(59,130,246,0.3)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#93c5fd", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-body)" }}>
+                <button onClick={() => setMenuOpen(m => !m)} style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#1e3a5f,#0f2040)", border: "1px solid rgba(59,130,246,0.3)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#93c5fd", fontSize: 12, fontWeight: 700, fontFamily: "var(--font-body)", position: "relative" }}>
                   {user?.email?.[0]?.toUpperCase() || "G"}
                 </button>
                 {menuOpen && (
