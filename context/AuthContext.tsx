@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 interface AuthContextType {
   user: User | null;
@@ -25,7 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [guestId, setGuestId] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Init fingerprint-based guest ID on mount
   useEffect(() => {
     async function initGuestId() {
       try {
@@ -33,7 +32,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const id = await getTrackedGuestId();
         setGuestId(id);
       } catch {
-        // Fallback to simple random ID
         let id = localStorage.getItem("studiengine_guest_id");
         if (!id) { id = "guest_" + Math.random().toString(36).slice(2); localStorage.setItem("studiengine_guest_id", id); }
         setGuestId(id);
@@ -48,8 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         setIsGuest(false);
         try {
-          const snap = await getDoc(doc(db, "usage", u.uid));
-          setIsPremium(snap.data()?.isPremium === true);
+          const ref = doc(db, "usage", u.uid);
+          const snap = await getDoc(ref);
+          if (!snap.exists()) {
+            // New user — create usage doc with email stored
+            await setDoc(ref, {
+              quizCount: 0, scanCount: 0,
+              lastReset: new Date().toISOString().split("T")[0],
+              isPremium: false,
+              email: u.email || "",
+            });
+            setIsPremium(false);
+          } else {
+            const data = snap.data();
+            setIsPremium(data?.isPremium === true);
+            // Update email if missing
+            if (!data?.email && u.email) {
+              await setDoc(ref, { email: u.email }, { merge: true });
+            }
+          }
         } catch { setIsPremium(false); }
       }
       setLoading(false);
@@ -65,7 +80,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signUp(email: string, pass: string) {
-    await createUserWithEmailAndPassword(auth, email, pass);
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    // Store email immediately on signup
+    await setDoc(doc(db, "usage", cred.user.uid), {
+      quizCount: 0, scanCount: 0,
+      lastReset: new Date().toISOString().split("T")[0],
+      isPremium: false,
+      email,
+    });
     setIsGuest(false);
   }
 
