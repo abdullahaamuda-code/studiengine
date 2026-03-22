@@ -19,7 +19,7 @@ async function callWithFallback(messages: any[]): Promise<string> {
       const res = await fetch(GROQ_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ model: MODEL, temperature: 0.4, max_tokens: 250, messages }),
+        body: JSON.stringify({ model: MODEL, temperature: 0.4, max_tokens: 200, messages }),
       });
       if (res.status === 429 || res.status === 503) { continue; }
       if (!res.ok) {
@@ -39,7 +39,7 @@ async function callWithFallback(messages: any[]): Promise<string> {
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${orKey}`, "HTTP-Referer": "https://studiengine.vercel.app", "X-Title": "Studiengine" },
-      body: JSON.stringify({ model: "meta-llama/llama-3.1-8b-instruct:free", messages, max_tokens: 250, temperature: 0.4 }),
+      body: JSON.stringify({ model: "meta-llama/llama-3.1-8b-instruct:free", messages, max_tokens: 200, temperature: 0.4 }),
     });
     if (res.ok) return (await res.json()).choices?.[0]?.message?.content || "";
   }
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const { question, options, answer, explanation, userQuestion } = await req.json();
     const optionsText = (options || []).map((o: string) => `  ${o}`).join("\n");
     const messages = [
-      { role: "system", content: `You are a Nigerian exam tutor. Give a SHORT, clear explanation — maximum 4-5 sentences or steps. No long intros. Get straight to the point. For math: show the key steps only, not every identity. Use plain text for math expressions, no LaTeX dollar signs. Be direct and concise.` },
+      { role: "system", content: `You are a Nigerian exam tutor. Give a SHORT explanation in exactly 3-4 complete sentences maximum. NEVER leave a sentence unfinished. End with a complete sentence. No intros like "I'd be happy to". For math: one worked example only. Plain text, no LaTeX.` },
       { role: "user", content: `Question: ${question}\nOptions:\n${optionsText}\nCorrect Answer: ${answer}\nBrief explanation: ${explanation || "Not provided"}\n\nStudent asks: ${userQuestion || "Please explain this in detail with full working and reasoning."}` },
     ];
     const result = await callWithFallback(messages);
