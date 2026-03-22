@@ -221,7 +221,7 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
                     </div>
                     {explainText && (
                       <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                        {explainText}
+                        <MathText text={explainText} />
                       </div>
                     )}
                   </div>
