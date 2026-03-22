@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getUsage, canGenerateQuiz, canScanPDF, incrementQuiz, incrementScan, getLimitsForUser } from "@/lib/limits";
 import { useToast } from "./Toast";
 
-export default function PQQuizTab() {
+export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => void }) {
   const { userId, isPremium, isGuest } = useAuth();
   const { show } = useToast();
   const [questions, setQuestions] = useState<any[] | null>(null);
@@ -53,28 +53,28 @@ export default function PQQuizTab() {
       await incrementQuiz(userId);
       if (trimmedImages?.length) await incrementScan(userId);
       setQuestions((data.questions || []).slice(0, count));
-      show("Quiz ready!", "success");
+      show("CBT ready!", "success");
     } catch (e: any) { setError(e.message || "Network error."); }
     setLoading(false); setProgress(0);
   }
 
-  if (questions) return <QuizPlayer questions={questions} onReset={() => setQuestions(null)} userId={userId} isPremium={isPremium} />;
+  if (questions) return <QuizPlayer questions={questions} onReset={() => setQuestions(null)} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
 
   return (
     <div className="animate-in">
       <p style={{ color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.65, marginBottom: 20 }}>
-        Paste actual past question text or upload a scanned PDF — converted to interactive quiz with answers and explanations.
+        Paste actual past question text or upload a scanned PDF — converted to CBT practice with answers and explanations.
       </p>
       {usageInfo && !isPremium && (
         <div style={{ marginBottom: 14, padding: "8px 12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 8, fontSize: 12, color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
-          <span>Quizzes today</span>
+          <span>CBTs today</span>
           <span style={{ color: usageInfo.quizCount >= quizLimit ? "#f87171" : "#4ade80", fontWeight: 600 }}>{usageInfo.quizCount} / {quizLimit}</span>
         </div>
       )}
       <QuestionCountSelector value={count} onChange={setCount} maxAllowed={limits.maxQuestions} />
       <InputPanel onSubmit={handleSubmit} loading={loading} progress={progress}
         placeholder={`Paste your past questions here...\n\nExamples:\n• JAMB 2022 Chemistry questions 1-20\n• WAEC 2019 Mathematics objectives\n• University exam questions`}
-        buttonLabel="Convert to Quiz →"
+        buttonLabel="Convert to CBT →"
         hint="Questions with A B C D options will be preserved. Without options — AI generates plausible ones." />
       {error && <div style={{ marginTop: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", color: "#f87171", fontSize: 13 }}>⚠️ {error}</div>}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} reason={upgradeReason} />}
