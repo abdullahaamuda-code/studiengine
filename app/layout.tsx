@@ -5,11 +5,16 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/components/Toast";
 
 export const metadata: Metadata = {
-  title: "Studiengine — AI Exam Prep for Nigerian Students",
-  description: "Turn your notes and past questions into interactive quizzes. Built for JAMB, WAEC, and Nigerian university students.",
-    icons: { icon: "/studiengine-logo.svg" },
-  openGraph: {
-    images: ["/studiengine-logo.svg"],
+  title: "Studiengine — AI CBT Exam Prep for Nigerian Students",
+  description: "Turn your notes and past questions into CBT practice. Built for JAMB, WAEC, NECO and Nigerian university students.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Studiengine",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
   },
 };
 
@@ -17,12 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link
-          rel="stylesheet"
-          href="https://unpkg.com/katex@0.16.11/dist/katex.min.css"
-          crossOrigin="anonymous"
-        />
-        <link rel="icon" href="/studiengine-logo.svg" type="image/svg+xml" />
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Studiengine" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body>
         <ThemeProvider>
