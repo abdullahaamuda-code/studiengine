@@ -4,19 +4,44 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/components/Toast";
 
+import type { Metadata } from "next";
+import "./globals.css";
+
 export const metadata: Metadata = {
-  title: "Studiengine — AI CBT Exam Prep for Nigerian Students",
-  description: "Turn your notes and past questions into CBT practice. Built for JAMB, WAEC, NECO and Nigerian university students.",
-  manifest: "/manifest.json",
+  title: "Studiengine",
+  description: "Studiengine",
+  themeColor: "#2563eb",
+  icons: {
+    // main favicon / icon
+    icon: "/studiengine-logo.svg",
+    // if you still have the old 192x192 icon
+    apple: "/icon-192.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Studiengine",
   },
-  other: {
-    "mobile-web-app-capable": "yes",
+  openGraph: {
+    title: "Studiengine",
+    description: "Studiengine",
+    images: ["/studiengine-logo.svg"],
   },
+  manifest: "/manifest.json",
 };
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  );
+}
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -28,9 +53,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   <meta name="apple-mobile-web-app-title" content="Studiengine" />
   <link rel="apple-touch-icon" href="/icon-192.png" />
   <link rel="manifest" href="/manifest.json" />
-  
-  <!-- Added icons and openGraph for Next.js metadata -->
-  <meta property="og:image" content="/studiengine-logo.svg" />
 </head>
 
       <body>
