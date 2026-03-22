@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
     const result = await callWithFallback(messages);
     return NextResponse.json({ explanation: result });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Could not get explanation." }, { status: 500 });
+    const msg = e?.message || "";
+    console.error("[explain]", msg);
+    const friendly = msg.includes("busy") || msg.includes("rate") || msg.includes("429") || msg.includes("TPD")
+      ? "AI is busy. Please try again in a moment."
+      : "Could not get explanation. Please try again.";
+    return NextResponse.json({ error: friendly }, { status: 500 });
   }
 }
