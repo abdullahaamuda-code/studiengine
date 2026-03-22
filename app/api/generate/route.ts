@@ -125,7 +125,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Text path — type-specific prompt
-    const systemPrompt = buildTextPrompt(type, count);
+    // ✅ correct (matches your updated function name)
+    const systemPrompt = buildSystemPrompt(type, count);
+
     if (!systemPrompt) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     if (!textKey) return NextResponse.json({ error: "API key not configured" }, { status: 500 });
 
