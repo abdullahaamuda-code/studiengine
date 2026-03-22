@@ -81,35 +81,60 @@ async function callGroqWithRetry(apiKey: string, model: string, messages: any[],
 
 function buildSystemPrompt(type: string, count: number): string {
   if (type === "notes_quiz") return `You are a Nigerian university exam prep AI. Generate exactly ${count} MCQ questions from the given material.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no explanation, no LaTeX backslashes.
-Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-VERY IMPORTANT about options format:
-- Every option MUST start with exactly "A. " "B. " "C. " or "D. " (capital letter, period, space)
-- Do NOT use f( or k( or any function notation as option labels
-- Do NOT use question marks or symbols as option labels
-- The 4 options must always be labeled A. B. C. D. and nothing else
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks.
+MATH FORMATTING — wrap all math in dollar signs:
+- Fractions: $\\frac{numerator}{denominator}$
+- Limits: $\\lim_{x \\to 0} f(x)$
+- Derivatives: $\\frac{dy}{dx}$
+- Roots: $\\sqrt{x}$
+- Powers: $x^2$, $e^{x}$
+- Trig: $\\sin(x)$, $\\cos(x)$, $\\tan(x)$
+- Greek: $\\theta$, $\\alpha$, $\\pi$
+- Plain text with no math does NOT need dollar signs
+OPTIONS FORMAT:
+- Every option MUST start with "A. " "B. " "C. " or "D. "
+- Never use function letters or symbols as option labels
 Format: [{"id":1,"question":"...","options":["A. option text","B. option text","C. option text","D. option text"],"answer":"A","explanation":"1-2 sentence explanation"}]
 Rules: answer is single letter A B C D | always include explanation`;
 
   if (type === "pq_quiz") return `You are converting Nigerian past exam questions (JAMB, WAEC, NECO, university) into a quiz.
-CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks, no LaTeX backslashes.
-Use plain text for math: cos(x) not \\cos x, theta not \\theta, sqrt(x) not \\sqrt{x}.
-VERY IMPORTANT about options format:
-- Every option MUST start with exactly "A. " "B. " "C. " or "D. " (capital letter, period, space)
-- Even if the original question uses letters like f( or k( as answer choices, you MUST relabel them as A. B. C. D.
-- For example if original says "f(-x)=f(x)" as option, write it as "A. f(-x)=f(x)"
-- Do NOT use function letters, symbols, or question marks as option labels
-- IGNORE any bullet points, checkmarks, or marks in the original — those are just answer indicators in the source
-- The answer field should be the letter (A/B/C/D) that corresponds to the correct option
+CRITICAL: Return ONLY a raw JSON array. No markdown, no backticks.
+MATH FORMATTING — wrap all math in dollar signs:
+- Fractions: $\\frac{numerator}{denominator}$
+- Limits: $\\lim_{x \\to 0} f(x)$
+- Derivatives: $\\frac{dy}{dx}$, $\\frac{d^2y}{dx^2}$
+- Roots: $\\sqrt{x}$, $\\sqrt{1+x^2}$
+- Powers: $x^2$, $e^{x}$, $3x^3+2x+1$
+- Trig: $\\sin(x)$, $\\cos(2t)$, $\\tan(x)$
+- Greek: $\\theta$, $\\alpha$, $\\pi$
+- Plain text with no math does NOT need dollar signs
+OPTIONS FORMAT — always A. B. C. D.:
+- Every option MUST start with "A. " "B. " "C. " or "D. "
+- Relabel original options as A. B. C. D. even if original uses f( k( or other labels
+- IGNORE checkmarks, ticks, green marks next to options — those are answer indicators, not text
+- Never include checkmarks in option text
 Format: [{"id":1,"question":"...","options":["A. option text","B. option text","C. option text","D. option text"],"answer":"A","explanation":"1-2 sentence explanation","year":"2019 WAEC or empty string"}]
 Rules: answer is single letter A B C D | always include explanation | extract up to ${count} questions`;
 
   return "";
 }
 
-const VISION_SUFFIX = `\nThese are scanned exam pages. Read all questions carefully.
-No LaTeX backslashes. Write math in plain text: cos(x), sin(theta), x^2, sqrt(x).
-IMPORTANT: Options must ALWAYS be labeled A. B. C. D. — never use function letters or symbols as labels.
+const VISION_SUFFIX = `\nThese are scanned exam pages. Read ALL questions including complex math carefully.
+CRITICAL MATH RULES:
+- Wrap ALL math expressions in dollar signs for LaTeX rendering
+- Fractions: use $\\frac{top}{bottom}$ e.g. $\\frac{\\sqrt{2}}{2}$
+- Limits: use $\\lim_{x \\to 0}$ etc.
+- Derivatives: use $\\frac{dy}{dx}$ or $\\frac{d^2y}{dx^2}$
+- Square roots: use $\\sqrt{x}$ or $\\sqrt{1+x^2}$
+- Superscripts: use $x^2$ $e^{x}$ $3x^3$
+- Greek letters: $\\theta$ $\\alpha$ $\\pi$
+- Trig: $\\sin(x)$ $\\cos(2t)$ $\\tan(x)$
+- Simple numbers/text with no math do NOT need dollar signs
+IMPORTANT OPTIONS RULES:
+- Options MUST be labeled A. B. C. D. always
+- IGNORE any checkmarks, ticks, green marks or symbols next to options — those are just answer indicators in the source, not part of the option text
+- Never use checkmarks or ticks in the option text
+- Relabel existing options as A. B. C. D. even if original uses different labels
 Always include explanation. Return only the JSON array.`;
 
 async function processVisionBatches(apiKey: string, systemPrompt: string, images: string[], type: string, count: number): Promise<any[]> {
