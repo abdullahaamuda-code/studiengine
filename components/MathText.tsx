@@ -9,8 +9,6 @@ export default function MathText({ text, style }: { text: string; style?: React.
 
     async function render() {
       const katex = (await import("katex")).default;
-      await import("katex/dist/katex.min.css");
-
       const el = ref.current!;
 
       // Unescape double backslashes that come from JSON parsing
