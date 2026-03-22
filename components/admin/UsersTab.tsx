@@ -1,18 +1,14 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch, query, limit } from "firebase/firestore";
 
 interface UserRow {
-  id: string;
-  quizCount: number;
-  scanCount: number;
-  isPremium: boolean;
-  lastReset: string;
-  email?: string;
+  id: string; quizCount: number; scanCount: number;
+  isPremium: boolean; lastReset: string; email?: string;
 }
 
 export default function UsersTab() {
-  const { user } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -23,36 +19,46 @@ export default function UsersTab() {
   async function load() {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/admin/users", { headers: { "x-admin-uid": user?.uid || "" } });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setUsers(data.users);
+      const snap = await getDocs(query(collection(db, "usage"), limit(100)));
+      setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })) as UserRow[]);
     } catch (e: any) { setError(e.message); }
     setLoading(false);
   }
 
-  useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => { load(); }, []);
 
-  async function doAction(action: string, userId: string, value?: any) {
-    try {
-      const res = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-uid": user?.uid || "" },
-        body: JSON.stringify({ action, userId, value }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setActionMsg(action === "delete_user" ? "User deleted ✓" : action === "set_premium" ? `Premium ${value ? "granted ✓" : "removed ✓"}` : "Limits reset ✓");
-      setTimeout(() => setActionMsg(""), 3000);
-      load();
-    } catch (e: any) { setError(e.message); }
+  function toast(msg: string) { setActionMsg(msg); setTimeout(() => setActionMsg(""), 3000); }
+
+  async function setPremium(userId: string, value: boolean) {
+    await setDoc(doc(db, "usage", userId), { isPremium: value }, { merge: true });
+    toast(value ? "Premium granted ✓" : "Premium removed ✓");
+    load();
+  }
+
+  async function resetLimits(userId: string) {
+    const today = new Date().toISOString().split("T")[0];
+    await updateDoc(doc(db, "usage", userId), { quizCount: 0, scanCount: 0, lastReset: today });
+    toast("Limits reset ✓");
+    load();
+  }
+
+  async function deleteUser(userId: string) {
+    await deleteDoc(doc(db, "usage", userId));
+    toast("User deleted ✓");
+    load();
   }
 
   async function resetAll() {
     if (!confirm("Reset ALL user limits?")) return;
     setResettingAll(true);
-    await doAction("reset_all_limits", "");
+    const today = new Date().toISOString().split("T")[0];
+    const snap = await getDocs(collection(db, "usage"));
+    const batch = writeBatch(db);
+    snap.docs.forEach(d => batch.update(d.ref, { quizCount: 0, scanCount: 0, lastReset: today }));
+    await batch.commit();
+    toast(`Reset ${snap.size} users ✓`);
     setResettingAll(false);
+    load();
   }
 
   const filtered = users.filter(u =>
@@ -60,12 +66,13 @@ export default function UsersTab() {
     (u.email || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const S = {
-    card: { background: "rgba(8,20,40,0.6)", border: "1px solid rgba(56,139,253,0.12)", borderRadius: 12, padding: "14px 16px", marginBottom: 8 } as any,
-    label: { fontSize: 10, color: "#475569", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 2 },
-    val: { fontSize: 13, color: "#e2e8f0", margin: 0 },
-    btn: (color: string) => ({ fontSize: 11, padding: "5px 12px", borderRadius: 8, border: `1px solid ${color}40`, background: `${color}18`, color, cursor: "pointer" as const, fontFamily: "inherit" }),
-  };
+  const btn = (color: string, label: string, onClick: () => void) => (
+    <button onClick={onClick} style={{
+      fontSize: 11, padding: "5px 11px", borderRadius: 8,
+      border: `1px solid ${color}35`, background: `${color}15`,
+      color, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" as const,
+    }}>{label}</button>
+  );
 
   return (
     <div>
@@ -81,53 +88,47 @@ export default function UsersTab() {
         </button>
       </div>
 
-      {loading ? (
-        <p style={{ color: "#475569", fontSize: 13 }}>Loading users...</p>
-      ) : (
-        <div>
-          <div style={{ fontSize: 10, color: "#334155", padding: "0 16px 8px", display: "grid", gridTemplateColumns: "1fr 60px 60px 100px auto", gap: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-            <span>User</span><span>CBTs</span><span>Scans</span><span>Plan</span><span>Actions</span>
-          </div>
+      {loading ? <p style={{ color: "#475569", fontSize: 13 }}>Loading users...</p> : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {filtered.map(u => (
-            <div key={u.id} style={{ ...S.card, display: "grid", gridTemplateColumns: "1fr 60px 60px 100px auto", gap: 12, alignItems: "center" }}>
+            <div key={u.id} style={{ background: "rgba(8,20,40,0.6)", border: "1px solid rgba(56,139,253,0.12)", borderRadius: 12, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const }}>
               {/* User info */}
-              <div>
-                <p style={{ fontSize: 13, color: "#e2e8f0", margin: "0 0 2px", fontWeight: 500 }}>
-                  {u.email || (u.id.startsWith("guest_") ? "Guest user" : "No email")}
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <p style={{ fontSize: 13, color: "#e2e8f0", margin: "0 0 3px", fontWeight: 500 }}>
+                  {u.email || (u.id.startsWith("guest_") ? "Guest user" : "No email yet")}
                 </p>
                 <p style={{ fontSize: 10, color: "#334155", margin: 0 }}>
                   {u.id.startsWith("guest_") ? "👤 Guest" : "🔐 Registered"} · {u.lastReset}
                 </p>
               </div>
 
-              {/* CBTs */}
-              <span style={{ fontSize: 14, fontWeight: 600, color: u.quizCount >= 3 ? "#f87171" : "#4ade80", textAlign: "center" }}>
-                {u.quizCount}
-              </span>
-
-              {/* Scans */}
-              <span style={{ fontSize: 14, color: "#94a3b8", textAlign: "center" }}>{u.scanCount}</span>
-
-              {/* Plan badge */}
-              <div>
-                <span style={{
-                  fontSize: 11, padding: "4px 10px", borderRadius: 20, display: "inline-block",
-                  background: u.isPremium ? "rgba(251,191,36,0.12)" : "rgba(30,41,59,0.6)",
-                  color: u.isPremium ? "#fbbf24" : "#475569",
-                  border: `1px solid ${u.isPremium ? "rgba(251,191,36,0.25)" : "rgba(255,255,255,0.06)"}`,
-                }}>
-                  {u.isPremium ? "⚡ Premium" : "Free"}
-                </span>
+              {/* Stats */}
+              <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 10, color: "#334155", margin: "0 0 2px" }}>CBTs</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: u.quizCount >= 3 ? "#f87171" : "#4ade80", margin: 0 }}>{u.quizCount}</p>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <p style={{ fontSize: 10, color: "#334155", margin: "0 0 2px" }}>Scans</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8", margin: 0 }}>{u.scanCount}</p>
+                </div>
               </div>
 
+              {/* Plan */}
+              <span style={{
+                fontSize: 11, padding: "4px 12px", borderRadius: 20,
+                background: u.isPremium ? "rgba(251,191,36,0.12)" : "rgba(30,41,59,0.6)",
+                color: u.isPremium ? "#fbbf24" : "#475569",
+                border: `1px solid ${u.isPremium ? "rgba(251,191,36,0.25)" : "rgba(255,255,255,0.06)"}`,
+              }}>
+                {u.isPremium ? "⚡ Premium" : "Free"}
+              </span>
+
               {/* Actions */}
-              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                <button onClick={() => doAction("set_premium", u.id, !u.isPremium)}
-                  style={S.btn(u.isPremium ? "#f87171" : "#fbbf24")}>
-                  {u.isPremium ? "Remove ⚡" : "Grant ⚡"}
-                </button>
-                <button onClick={() => doAction("reset_limits", u.id)} style={S.btn("#60a5fa")}>Reset</button>
-                <button onClick={() => { if (confirm(`Delete ${u.email || u.id}?`)) doAction("delete_user", u.id); }} style={S.btn("#f87171")}>Delete</button>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
+                {btn(u.isPremium ? "#f87171" : "#fbbf24", u.isPremium ? "Remove ⚡" : "Grant ⚡", () => setPremium(u.id, !u.isPremium))}
+                {btn("#60a5fa", "Reset", () => resetLimits(u.id))}
+                {btn("#f87171", "Delete", () => { if (confirm(`Delete ${u.email || u.id}?`)) deleteUser(u.id); })}
               </div>
             </div>
           ))}
