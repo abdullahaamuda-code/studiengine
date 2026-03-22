@@ -13,13 +13,13 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const { show } = useToast();
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
   const [progress, setProgress] = useState(0);
-  const [foundCount, setFoundCount] = useState<number | null>(null);
-  const [usageInfo, setUsageInfo] = useState<{quizCount:number} | null>(null);
+  const [usageInfo, setUsageInfo] = useState<{quizCount: number} | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
   const quizLimit = isGuest ? 2 : isPremium ? Infinity : 4;
@@ -31,11 +31,11 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
 
   async function handleSubmit(content: string, images?: string[]) {
     if (!userId) { setError("Please sign in or continue as guest first."); return; }
-    setError(""); setLoading(true); setProgress(0);
+    setError(""); setNotice(""); setLoading(true); setProgress(0);
     try {
       const usage = await getUsage(userId);
       if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade to Premium for unlimited access.`);
+        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
         setShowUpgrade(true); setLoading(false); return;
       }
       if (images?.length && !canScanPDF(usage, isGuest)) {
@@ -46,20 +46,25 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       const batches = trimmedImages ? Math.ceil(trimmedImages.length / 5) : 1;
       let prog = 10; setProgress(prog);
       const interval = setInterval(() => { prog = Math.min(prog + (90 / batches) / 3, 90); setProgress(Math.round(prog)); }, 1000);
-      const body = trimmedImages?.length ? { type: "pq_quiz", content: "", images: trimmedImages, count } : { type: "pq_quiz", content, count };
+
+      const body = trimmedImages?.length
+        ? { type: "pq_quiz", content: "", images: trimmedImages, count, isPremium }
+        : { type: "pq_quiz", content, count, isPremium };
+
       const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       clearInterval(interval); setProgress(100);
       const data = await res.json();
       if (!res.ok || data.error) { setError(data.error || "Something went wrong."); setLoading(false); return; }
       await incrementQuiz(userId);
       if (trimmedImages?.length) await incrementScan(userId);
-      setQuestions((data.questions || []).slice(0, count));
-      show("CBT ready!", "success");
+      if (data.notice) setNotice(data.notice);
+      setQuestions(data.questions || []);
+      show(`${(data.questions || []).length} questions ready!`, "success");
     } catch (e: any) { setError(e.message || "Network error."); }
     setLoading(false); setProgress(0);
   }
 
-  if (questions) return <QuizPlayer questions={questions} onReset={() => setQuestions(null)} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
+  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); }} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
 
   return (
     <div className="animate-in">
@@ -73,6 +78,11 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
         </div>
       )}
       <QuestionCountSelector value={count} onChange={setCount} maxAllowed={limits.maxQuestions} />
+      {notice && (
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, fontSize: 12, color: "#fbbf24" }}>
+          ℹ️ {notice}
+        </div>
+      )}
       <InputPanel onSubmit={handleSubmit} loading={loading} progress={progress}
         placeholder={`Paste your past questions here...\n\nExamples:\n• JAMB 2022 Chemistry questions 1-20\n• WAEC 2019 Mathematics objectives\n• University exam questions`}
         buttonLabel="Convert to CBT →"
