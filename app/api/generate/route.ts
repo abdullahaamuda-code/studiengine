@@ -8,7 +8,7 @@ const MAX_CHARS = 6000;
 const MAX_CHARS_VISION = 10000;
 
 // For JSON conversion chunks
-const MAX_CHARS_PER_JSON_CHUNK = 2500; // per-call size
+const MAX_CHARS_PER_JSON_CHUNK = 2500; // safe per-call size
 
 function truncate(s: string, max = MAX_CHARS) {
   return s.length <= max ? s : s.slice(0, max) + "\n[truncated]";
@@ -55,7 +55,13 @@ function normalizeQuestions(qs: any[]): any[] {
         .trim()
         .toUpperCase()
         .match(/^([ABCD])/)?.[1] || "A";
-    return { ...q, id: q.id || i + 1, options: opts, answer: ans };
+
+    const explanation =
+      typeof q.explanation === "string" && q.explanation.trim().length > 0
+        ? q.explanation.trim()
+        : "The chosen option is correct based on the information in the question and options.";
+
+    return { ...q, id: q.id || i + 1, options: opts, answer: ans, explanation };
   });
 }
 
@@ -240,11 +246,11 @@ Extract every single question. Be thorough. Do not skip any.`;
 
 function fixLatex(text: string): string {
   return text
-    .replace(/\bfrac\{/g, "\\\\frac{")
-    .replace(/\bint_/g, "\\\\int_")
-    .replace(/\bint\^/g, "\\\\int^")
-    .replace(/\blim_/g, "\\\\lim_")
-    .replace(/\bsqrt\{/g, "\\\\sqrt{")
+    .replace(/(?<!\\)frac\{/g, "\\\\frac{")
+    .replace(/(?<!\\)int_/g, "\\\\int_")
+    .replace(/(?<!\\)int\^/g, "\\\\int^")
+    .replace(/(?<!\\)lim_/g, "\\\\lim_")
+    .replace(/(?<!\\)sqrt\{/g, "\\\\sqrt{")
     .replace(/\btheta\b/g, "\\\\theta")
     .replace(/\balpha\b/g, "\\\\alpha")
     .replace(/\bbeta\b/g, "\\\\beta")
@@ -304,22 +310,22 @@ async function convertChunkToJson(
       ? `You are converting OCR'd past exam questions into JSON.
 The text already has question numbers and options A, B, C, D, sometimes [CORRECT].
 For THIS CHUNK ONLY, convert EVERY question visible into JSON objects.
-Return ONLY a JSON array. Do NOT summarize or skip.`
+Return ONLY a JSON array. Do NOT summarize or skip.
+Every object MUST include a non-empty "explanation" explaining why the correct option is right.`
       : `You are converting OCR'd study material into MCQ JSON.
 For THIS CHUNK ONLY, create MCQs that cover the questions in the text.
-Return ONLY a JSON array.`;
+Return ONLY a JSON array.
+Every object MUST include a non-empty "explanation" explaining why the correct option is right.`;
 
-  const user = `TEXT CHUNK (only convert questions from this chunk):\n\n${chunk}`;
+  const user = `TEXT CHUNK (only convert questions from this chunk):\n\n${chunk}\n\nReturn ONLY a JSON array like:
+[{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"short clear explanation"}]`;
 
   const raw = await generateText(
     [
       { role: "system", content: sys },
-      {
-        role: "user",
-        content: `${user}\n\nFormat: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]`,
-      },
+      { role: "user", content: user },
     ],
-    2200,
+    2500,
     isPremium
   );
 
@@ -400,22 +406,17 @@ export async function POST(req: NextRequest) {
     if (!prompt)
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-    // ---- IMAGES BRANCH (FAST + CHUNK + EARLY STOP) ------------------------
+    // ---- IMAGES BRANCH WITH CHUNK + EARLY STOP ---------------------------
     if (images && images.length > 0) {
-      // Step 1: OCR pages
       const batches: string[][] = [];
       for (let i = 0; i < images.length; i += BATCH_SIZE)
         batches.push(images.slice(i, i + BATCH_SIZE));
 
-      // For small counts, don't OCR everything: cap batches to first 2
-      const maxBatchesToUse =
-        count <= 10 ? Math.min(batches.length, 2) : batches.length;
-
       const extracted: string[] = [];
-      for (let b = 0; b < maxBatchesToUse; b++) {
+      for (let b = 0; b < batches.length; b++) {
         try {
           console.log(
-            `[generate] extracting batch ${b + 1}/${maxBatchesToUse}`
+            `[generate] extracting batch ${b + 1}/${batches.length}`
           );
           const text = await extractBatch(batches[b], EXTRACT_PROMPT);
           if (text) {
@@ -424,7 +425,7 @@ export async function POST(req: NextRequest) {
               `[generate] batch ${b + 1}: ${text.length} chars`
             );
           }
-          if (b < maxBatchesToUse - 1)
+          if (b < batches.length - 1)
             await new Promise((r) => setTimeout(r, 1500));
         } catch (e: any) {
           console.error(
@@ -451,25 +452,18 @@ export async function POST(req: NextRequest) {
         combined.length,
         "chars from",
         extracted.length,
-        "batches (used)"
+        "batches"
       );
       console.log(
         "[generate] combined snippet:",
         combined.slice(0, 300)
       );
 
-      // Step 2: chunk combined text
       const blocks = splitCombinedIntoQuestionBlocks(combined);
-      let jsonChunks = groupBlocksIntoChunks(
+      const jsonChunks = groupBlocksIntoChunks(
         blocks,
         MAX_CHARS_PER_JSON_CHUNK
       );
-
-      // For small counts, only convert first 2 chunks max
-      if (count <= 10 && jsonChunks.length > 2) {
-        jsonChunks = jsonChunks.slice(0, 2);
-      }
-
       console.log(
         "[generate] jsonChunks:",
         jsonChunks.length,
@@ -478,9 +472,8 @@ export async function POST(req: NextRequest) {
       );
 
       const allRawQs: any[] = [];
-      const targetWithBuffer = count + 3; // small buffer so we have extra
+      const targetWithBuffer = count + 3;
 
-      // Step 3: convert chunks, early-stop when enough
       for (let i = 0; i < jsonChunks.length; i++) {
         const chunk = jsonChunks[i];
         console.log(
@@ -502,7 +495,7 @@ export async function POST(req: NextRequest) {
 
           if (allRawQs.length >= targetWithBuffer) {
             console.log(
-              "[generate] early stop: got enough questions:",
+              "[generate] early stop (vision): got enough questions:",
               allRawQs.length
             );
             break;
@@ -524,12 +517,8 @@ export async function POST(req: NextRequest) {
 
       const normalized = normalizeQuestions(allRawQs);
       const totalFound = normalized.length;
-
-      // If we early-stopped (totalFound >= targetWithBuffer or we didn't
-      // process all chunks), we don't show the modal. Just serve the requested count.
-      const processedAllChunks = totalFound < targetWithBuffer && jsonChunks.length > 0;
       const needsChoice =
-        processedAllChunks && totalFound > 0 && totalFound < count;
+        jsonChunks.length === 1 && totalFound > 0 && totalFound < count;
 
       console.log(
         "[generate] found (merged):",
@@ -551,11 +540,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ---- TEXT BRANCH (UNCHANGED) -----------------------------------------
+    // ---- TEXT BRANCH (IMPROVED PROMPT) -----------------------------------
     const safe = truncate(content);
     const userMsg =
       type === "pq_quiz"
-        ? `Convert to quiz JSON array:\n\n${safe}`
+        ? `The text below is a list of past exam questions with their options.
+Your job: convert EVERY question you see into JSON objects. Do not skip any. Do not summarize.
+TEXT:
+${safe}
+
+Return ONLY a JSON array like:
+[{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"short clear explanation","year":""}]`
         : safe;
 
     const raw = await generateText(
