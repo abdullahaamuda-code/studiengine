@@ -100,8 +100,9 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   async function handleFillRemaining() {
     if (!pendingQuestions || !suggestedCount) return;
     setFilling(true);
-    const fillCount = count - suggestedCount;
-    const topic = pendingQuestions[0]?.question?.slice(0, 80) || "the subject";
+    const effectiveCount = Math.min(count, limits.maxQuestions);
+    const fillCount = effectiveCount - suggestedCount;
+    const topic = pendingQuestions[0]?.question?.slice(0, 100) || "the same exam subject";
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -109,14 +110,23 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
         body: JSON.stringify({ action: "fill_remaining", fillCount, topic, existingQuestions: pendingQuestions, isPremium }),
       });
       const data = await res.json();
+      if (data.error) throw new Error(data.error);
       const filled = data.questions || [];
-      setQuestions([...pendingQuestions, ...filled]);
-    } catch {
+      const merged = [...pendingQuestions, ...filled];
+      // Re-index all IDs sequentially
+      merged.forEach((q, i) => { q.id = i + 1; });
+      setShowChoice(false);
+      setPendingQuestions(null);
+      setFilling(false);
+      setQuestions(merged);
+    } catch (e: any) {
+      // If fill fails just use what we have
+      setShowChoice(false);
+      setPendingQuestions(null);
+      setFilling(false);
       setQuestions(pendingQuestions);
+      setNotice(`Could not generate additional questions. Starting with ${suggestedCount} found.`);
     }
-    setFilling(false);
-    setShowChoice(false);
-    setPendingQuestions(null);
   }
 
   if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); setSuggestedCount(null); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
