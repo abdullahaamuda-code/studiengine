@@ -8,7 +8,7 @@ const MAX_CHARS = 6000;
 const MAX_CHARS_VISION = 10000;
 
 // For JSON conversion chunks
-const MAX_CHARS_PER_JSON_CHUNK = 2500; // safe per-call size
+const MAX_CHARS_PER_JSON_CHUNK = 2500; // per-call size
 
 function truncate(s: string, max = MAX_CHARS) {
   return s.length <= max ? s : s.slice(0, max) + "\n[truncated]";
@@ -271,9 +271,9 @@ Extract EVERY question. Do NOT stop early. Do NOT limit count. Answer = single l
 // ---- HELPERS FOR CHUNK + MERGE (VISION → JSON) -----------------------------
 
 function splitCombinedIntoQuestionBlocks(text: string): string[] {
-  // naive split on "Question" markers, but keeps them
-  const parts = text.split(/(?=Question\s+\d+|\*\*Question\s+\d+|\n##\s*\d+)/gi).filter(Boolean);
-  // if split fails badly, just return one chunk
+  const parts = text
+    .split(/(?=Question\s+\d+|\*\*Question\s+\d+|\n##\s*\d+)/gi)
+    .filter(Boolean);
   if (parts.length <= 1) return [text];
   return parts;
 }
@@ -319,7 +319,7 @@ Return ONLY a JSON array.`;
         content: `${user}\n\nFormat: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]`,
       },
     ],
-    2500,
+    2200,
     isPremium
   );
 
@@ -400,18 +400,22 @@ export async function POST(req: NextRequest) {
     if (!prompt)
       return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-    // ---- IMAGES BRANCH WITH CHUNK + MERGE ---------------------------------
+    // ---- IMAGES BRANCH (FAST + CHUNK + EARLY STOP) ------------------------
     if (images && images.length > 0) {
-      // Step 1: OCR all pages (Gemini / Groq vision)
+      // Step 1: OCR pages
       const batches: string[][] = [];
       for (let i = 0; i < images.length; i += BATCH_SIZE)
         batches.push(images.slice(i, i + BATCH_SIZE));
 
+      // For small counts, don't OCR everything: cap batches to first 2
+      const maxBatchesToUse =
+        count <= 10 ? Math.min(batches.length, 2) : batches.length;
+
       const extracted: string[] = [];
-      for (let b = 0; b < batches.length; b++) {
+      for (let b = 0; b < maxBatchesToUse; b++) {
         try {
           console.log(
-            `[generate] extracting batch ${b + 1}/${batches.length}`
+            `[generate] extracting batch ${b + 1}/${maxBatchesToUse}`
           );
           const text = await extractBatch(batches[b], EXTRACT_PROMPT);
           if (text) {
@@ -420,7 +424,7 @@ export async function POST(req: NextRequest) {
               `[generate] batch ${b + 1}: ${text.length} chars`
             );
           }
-          if (b < batches.length - 1)
+          if (b < maxBatchesToUse - 1)
             await new Promise((r) => setTimeout(r, 1500));
         } catch (e: any) {
           console.error(
@@ -447,19 +451,25 @@ export async function POST(req: NextRequest) {
         combined.length,
         "chars from",
         extracted.length,
-        "batches"
+        "batches (used)"
       );
       console.log(
         "[generate] combined snippet:",
         combined.slice(0, 300)
       );
 
-      // Step 2: CHUNK combined text into smaller question blocks
+      // Step 2: chunk combined text
       const blocks = splitCombinedIntoQuestionBlocks(combined);
-      const jsonChunks = groupBlocksIntoChunks(
+      let jsonChunks = groupBlocksIntoChunks(
         blocks,
         MAX_CHARS_PER_JSON_CHUNK
       );
+
+      // For small counts, only convert first 2 chunks max
+      if (count <= 10 && jsonChunks.length > 2) {
+        jsonChunks = jsonChunks.slice(0, 2);
+      }
+
       console.log(
         "[generate] jsonChunks:",
         jsonChunks.length,
@@ -468,8 +478,9 @@ export async function POST(req: NextRequest) {
       );
 
       const allRawQs: any[] = [];
+      const targetWithBuffer = count + 3; // small buffer so we have extra
 
-      // Step 3: For each chunk, call Groq to convert ONLY that chunk to JSON
+      // Step 3: convert chunks, early-stop when enough
       for (let i = 0; i < jsonChunks.length; i++) {
         const chunk = jsonChunks[i];
         console.log(
@@ -488,6 +499,14 @@ export async function POST(req: NextRequest) {
             "questions"
           );
           allRawQs.push(...chunkQs);
+
+          if (allRawQs.length >= targetWithBuffer) {
+            console.log(
+              "[generate] early stop: got enough questions:",
+              allRawQs.length
+            );
+            break;
+          }
         } catch (e: any) {
           console.error(
             `[generate] chunk ${i + 1} JSON failed:`,
@@ -505,7 +524,13 @@ export async function POST(req: NextRequest) {
 
       const normalized = normalizeQuestions(allRawQs);
       const totalFound = normalized.length;
-      const needsChoice = totalFound > 0 && totalFound < count;
+
+      // If we early-stopped (totalFound >= targetWithBuffer or we didn't
+      // process all chunks), we don't show the modal. Just serve the requested count.
+      const processedAllChunks = totalFound < targetWithBuffer && jsonChunks.length > 0;
+      const needsChoice =
+        processedAllChunks && totalFound > 0 && totalFound < count;
+
       console.log(
         "[generate] found (merged):",
         totalFound,
