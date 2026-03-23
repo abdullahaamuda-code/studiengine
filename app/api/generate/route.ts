@@ -5,41 +5,31 @@ const TEXT_MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const BATCH_SIZE = 5;
 const MAX_CHARS = 6000;
-const MAX_CHARS_VISION = 12000; // Vision extracts more text across pages
+const MAX_CHARS_VISION = 10000;
 
-function truncate(s: string) {
-  return s.length <= MAX_CHARS ? s : s.slice(0, MAX_CHARS) + "\n[truncated]";
+function truncate(s: string, max = MAX_CHARS) {
+  return s.length <= max ? s : s.slice(0, max) + "\n[truncated]";
 }
 
 function parseAIJson(raw: string): any {
-  // Strip markdown fences
   let clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-  
-  // Try 1: direct parse
   try { const r = JSON.parse(clean); return Array.isArray(r) ? r : null; } catch (_) {}
-  
-  // Try 2: find array with greedy match from first [ to last ]
   const start = clean.indexOf("[");
   const end = clean.lastIndexOf("]");
-  if (start !== -1 && end !== -1 && end > start) {
+  if (start !== -1 && end > start) {
     const arr = clean.slice(start, end + 1);
     try { return JSON.parse(arr); } catch (_) {}
-    // Try 3: fix bad backslashes
     try { return JSON.parse(arr.replace(/\\(?!["\\/bfnrtu])/g, "\\\\")); } catch (_) {}
-    // Try 4: remove control characters
     try { return JSON.parse(arr.replace(/[\x00-\x1F\x7F]/g, " ")); } catch (_) {}
   }
-  
-  // Try 5: extract individual question objects and build array manually
+  // Last resort: extract individual objects
   const objects: any[] = [];
   const objRegex = /\{[^{}]*"question"[^{}]*\}/g;
-  let match;
-  while ((match = objRegex.exec(clean)) !== null) {
-    try { objects.push(JSON.parse(match[0])); } catch (_) {}
+  let m;
+  while ((m = objRegex.exec(clean)) !== null) {
+    try { objects.push(JSON.parse(m[0])); } catch (_) {}
   }
   if (objects.length > 0) return objects;
-  
-  console.error("[parse] all strategies failed, raw sample:", clean.slice(0, 300));
   return null;
 }
 
@@ -64,7 +54,6 @@ function friendlyError(msg: string): string {
   return `Error: ${msg.slice(0, 120)}`;
 }
 
-// ── Single Groq key call ──────────────────────────────────────────────────────
 async function callGroq(apiKey: string, model: string, messages: any[], maxTokens = 3000): Promise<string> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(GROQ_URL, {
@@ -85,31 +74,6 @@ async function callGroq(apiKey: string, model: string, messages: any[], maxToken
   throw new Error("rate limited");
 }
 
-// ── OpenRouter fallback ───────────────────────────────────────────────────────
-async function callOpenRouter(messages: any[], maxTokens = 3000): Promise<string> {
-  const key = process.env.OPENROUTER_API_KEY;
-  if (!key) throw new Error("No OpenRouter key");
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${key}`,
-      "HTTP-Referer": "https://studiengine.vercel.app",
-      "X-Title": "Studiengine",
-    },
-    body: JSON.stringify({
-      model: "meta-llama/llama-3.1-8b-instruct:free",
-      messages, max_tokens: maxTokens, temperature: 0.3,
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error((err as any)?.error?.message || `OpenRouter ${res.status}`);
-  }
-  return (await res.json()).choices?.[0]?.message?.content || "";
-}
-
-// ── Text generation with full fallback chain ──────────────────────────────────
 async function generateText(messages: any[], maxTokens = 3000, isPremium = false): Promise<string> {
   const keys = [
     isPremium ? process.env.GROQ_PREMIUM_KEY : null,
@@ -118,27 +82,26 @@ async function generateText(messages: any[], maxTokens = 3000, isPremium = false
     process.env.GROQ_VISION_KEY,
     process.env.GROQ_API_KEY,
   ].filter(Boolean) as string[];
-
   const unique = keys.filter((k, i) => keys.indexOf(k) === i);
-
   for (const key of unique) {
-    try {
-      return await callGroq(key, TEXT_MODEL, messages, maxTokens);
-    } catch (e: any) {
-      if (e.message.includes("rate") || e.message.includes("429") || e.message.includes("busy")) {
-        console.log("[generate] Groq key rate limited, trying next...");
-        continue;
-      }
+    try { return await callGroq(key, TEXT_MODEL, messages, maxTokens); }
+    catch (e: any) {
+      if (e.message.includes("rate") || e.message.includes("429") || e.message.includes("busy")) { continue; }
       throw e;
     }
   }
-
-  // All Groq keys exhausted — try OpenRouter
-  console.log("[generate] All Groq keys busy, trying OpenRouter...");
-  return await callOpenRouter(messages, maxTokens);
+  const orKey = process.env.OPENROUTER_API_KEY;
+  if (orKey) {
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${orKey}`, "HTTP-Referer": "https://studiengine.vercel.app", "X-Title": "Studiengine" },
+      body: JSON.stringify({ model: "meta-llama/llama-3.1-8b-instruct:free", messages, max_tokens: maxTokens, temperature: 0.3 }),
+    });
+    if (res.ok) return (await res.json()).choices?.[0]?.message?.content || "";
+  }
+  throw new Error("AI is busy. Please wait and try again.");
 }
 
-// ── Gemini vision ─────────────────────────────────────────────────────────────
 async function callGemini(images: string[], prompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("No Gemini key");
@@ -148,7 +111,7 @@ async function callGemini(images: string[], prompt: string): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 2000, temperature: 0.2 } }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 2000, temperature: 0.1 } }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -157,78 +120,73 @@ async function callGemini(images: string[], prompt: string): Promise<string> {
   return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
-// ── Groq vision fallback ──────────────────────────────────────────────────────
 async function callGroqVision(images: string[], prompt: string): Promise<string> {
-  const keys = [
-    process.env.GROQ_VISION_KEY,
-    process.env.GROQ_TEXT_KEY,
-    process.env.GROQ_ANALYZE_KEY,
-    process.env.GROQ_API_KEY,
-  ].filter(Boolean) as string[];
+  const keys = [process.env.GROQ_VISION_KEY, process.env.GROQ_TEXT_KEY, process.env.GROQ_ANALYZE_KEY, process.env.GROQ_API_KEY].filter(Boolean) as string[];
   const unique = keys.filter((k, i) => keys.indexOf(k) === i);
   const imageContent = images.map(b64 => ({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` } }));
   for (const key of unique) {
-    try {
-      return await callGroq(key, VISION_MODEL, [{ role: "user", content: [...imageContent, { type: "text", text: prompt }] }], 2000);
-    } catch (e: any) {
-      if (e.message.includes("rate") || e.message.includes("429") || e.message.includes("busy")) continue;
-      throw e;
-    }
+    try { return await callGroq(key, VISION_MODEL, [{ role: "user", content: [...imageContent, { type: "text", text: prompt }] }], 2000); }
+    catch (e: any) { if (e.message.includes("rate")) continue; throw e; }
   }
-  throw new Error("Vision AI busy. Please try again.");
+  throw new Error("Vision AI busy.");
 }
 
-// ── Extract text from image batch ─────────────────────────────────────────────
 async function extractBatch(images: string[], prompt: string): Promise<string> {
-  try {
-    return await callGemini(images, prompt);
-  } catch (e: any) {
-    console.log("[generate] Gemini failed:", e.message, "- falling back to Groq vision");
+  try { return await callGemini(images, prompt); }
+  catch (e: any) {
+    console.log("[generate] Gemini failed:", e.message, "- trying Groq vision");
     return await callGroqVision(images, prompt);
   }
 }
 
-// ── Prompts ───────────────────────────────────────────────────────────────────
-function buildVisionConvertPrompt(type: string, count: number): string {
-  const math = `Math: wrap in $...$. E.g. $\\frac{a}{b}$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$.`;
-  const opts = `Options MUST be labeled A. B. C. D. Ignore checkmarks. Relabel if needed.`;
-  if (type === "pq_quiz") return `Convert ALL Nigerian past exam questions from this extracted text into a quiz.
-Return ONLY a JSON array, no markdown. ${math} ${opts}
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","year":""}]
-Extract EVERY SINGLE question you see. Do not stop early. Answer = single letter A/B/C/D. Always include explanation.`;
-  // For notes_quiz, generate exactly count questions
-  return `Nigerian exam AI. Generate EXACTLY ${count} MCQs from the material.
-Return ONLY a JSON array, no markdown. ${math} ${opts}
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]
-Generate EXACTLY ${count} questions. Answer = single letter A/B/C/D. Always include explanation.`;
-}
+// Keep LaTeX as-is during extraction — don't convert to plain text
+const EXTRACT_PROMPT = `Extract ALL questions from these exam pages as plain text.
+For each question: include the question number, full question text, all answer options (A B C D), and mark the correct answer with [CORRECT] if visible.
+IMPORTANT: Keep ALL mathematical expressions exactly as they appear. Do not convert fractions, integrals, or any math notation.
+Extract every single question visible on the page. Be thorough and complete.`;
 
 function buildPrompt(type: string, count: number): string {
-  const math = `Math: wrap in $...$. E.g. $\\frac{a}{b}$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$.`;
+  const math = `Math MUST be wrapped in $...$. Examples: $\\frac{a}{b}$, $\\int_0^e$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$. Convert any plain math like (a/b) to $\\frac{a}{b}$.`;
   const opts = `Options MUST be labeled A. B. C. D. Ignore checkmarks. Relabel if needed.`;
   if (type === "notes_quiz") return `Nigerian exam AI. Generate EXACTLY ${count} MCQs from the material.
 Return ONLY a JSON array, no markdown. ${math} ${opts}
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]
 Generate EXACTLY ${count} questions. Answer = single letter A/B/C/D. Always include explanation.`;
-  if (type === "pq_quiz") return `Convert Nigerian past exam questions into a quiz.
+  if (type === "pq_quiz") return `Convert Nigerian past exam questions into a structured quiz.
 Return ONLY a JSON array, no markdown. ${math} ${opts}
 Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","year":""}]
-Extract up to ${count} questions. Answer = single letter A/B/C/D. Always include explanation.`;
+Extract EVERY question you see. Do not stop early. Do not limit the count. Answer = single letter A/B/C/D. Always include explanation.`;
   return "";
 }
 
-const EXTRACT_PROMPT = `Extract ALL questions from these exam pages.
-For each question include the question text, all options (A B C D), and mark correct answer with [CORRECT] if visible.
-For math: write fractions as (a/b), limits as lim(x->0), roots as sqrt(x), powers as x^2.
-Extract every single question visible. Be thorough.`;
-
-// ── Main handler ──────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
-    const { type, content, images, count = 10, isPremium = false } = await req.json();
+    const body = await req.json();
+    const { type, content, images, count = 10, isPremium = false, action, existingQuestions, fillCount, topic } = body;
 
-    console.log("[generate] type:", type, "images:", images?.length || 0, "count:", count, "isPremium:", isPremium);
+    console.log("[generate] type:", type, "images:", images?.length || 0, "count:", count, "action:", action);
 
+    // ── Fill remaining questions ──────────────────────────────────────────────
+    if (action === "fill_remaining") {
+      const n = fillCount || 5;
+      const raw = await generateText([
+        { role: "system", content: `Generate exactly ${n} NEW MCQ questions about: "${topic || "the same exam subject"}".
+Do NOT repeat any existing questions. Return ONLY a JSON array, no markdown.
+Math in $...$: $\\frac{a}{b}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$. Options A. B. C. D. Always include explanation.
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]` },
+        { role: "user", content: `Generate exactly ${n} fresh questions. Return only the JSON array.` },
+      ], 3000, isPremium);
+      const rawQs = parseAIJson(raw);
+      if (!rawQs || !rawQs.length) {
+        return NextResponse.json({ error: "Could not generate additional questions." }, { status: 422 });
+      }
+      const normalized = normalizeQuestions(rawQs);
+      const startId = (existingQuestions?.length || 0) + 1;
+      normalized.forEach((q, i) => { q.id = startId + i; });
+      return NextResponse.json({ questions: normalized.slice(0, n) });
+    }
+
+    // ── Normal generation ─────────────────────────────────────────────────────
     if (!content?.trim() && !images?.length) {
       return NextResponse.json({ error: "No content provided" }, { status: 400 });
     }
@@ -237,7 +195,6 @@ export async function POST(req: NextRequest) {
     if (!prompt) return NextResponse.json({ error: "Invalid type: " + type }, { status: 400 });
 
     if (images && images.length > 0) {
-      // Vision path: extract text from all pages, then convert to questions
       const batches: string[][] = [];
       for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
 
@@ -248,63 +205,51 @@ export async function POST(req: NextRequest) {
           const text = await extractBatch(batches[b], EXTRACT_PROMPT);
           if (text) { extracted.push(text); console.log(`[generate] batch ${b+1}: ${text.length} chars`); }
           if (b < batches.length - 1) await new Promise(r => setTimeout(r, 500));
-        } catch (e: any) {
-          console.error(`[generate] batch ${b+1} failed:`, e.message);
-        }
+        } catch (e: any) { console.error(`[generate] batch ${b+1} failed:`, e.message); }
       }
 
       if (extracted.length === 0) {
         return NextResponse.json({ error: "Could not read PDF pages. Try a clearer scan." }, { status: 422 });
       }
 
-      const rawCombined = extracted.join("\n\n");
-      const combined = rawCombined.length <= MAX_CHARS_VISION ? rawCombined : rawCombined.slice(0, MAX_CHARS_VISION) + "\n[truncated]";
-      console.log("[generate] combined length:", combined.length, "from", extracted.length, "batches");
-      // For pq_quiz extract ALL found questions — we'll trim to count after
-      // For notes_quiz generate exactly count questions from material
+      const combined = truncate(extracted.join("\n\n"), MAX_CHARS_VISION);
+      console.log("[generate] combined:", combined.length, "chars from", extracted.length, "batches");
+
       const userMsg = type === "pq_quiz"
-        ? `Convert ALL these extracted questions into a JSON array. Extract EVERY question you see, do not limit the count:\n\n${combined}`
+        ? `Convert ALL these extracted questions into a quiz JSON array. Extract EVERY question, do not limit:\n\n${combined}`
         : combined;
 
-      const visionPrompt = buildVisionConvertPrompt(type, count);
-      const raw = await generateText([
-        { role: "system", content: visionPrompt },
+      let raw = await generateText([
+        { role: "system", content: prompt },
         { role: "user", content: userMsg },
       ], 4000, isPremium);
 
       let rawQs = parseAIJson(raw);
-      
-      // If parse failed, retry with a dead-simple prompt
+
       if (!rawQs || !rawQs.length) {
-        console.error("[generate] first parse failed, retrying with simple prompt. raw:", raw.slice(0, 200));
-        try {
-          const retryRaw = await generateText([
-            { role: "system", content: `Return ONLY a JSON array of MCQ questions. No text before or after. Format exactly: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]` },
-            { role: "user", content: `Convert this to a JSON question array. Return ONLY the array, nothing else:\n\n${combined.slice(0, 3000)}` },
-          ], 3000, isPremium);
-          rawQs = parseAIJson(retryRaw);
-          console.error("[generate] retry result:", rawQs?.length || 0, "questions");
-        } catch (retryErr: any) {
-          console.error("[generate] retry failed:", retryErr.message);
-        }
+        console.error("[generate] parse failed, retrying. raw:", raw.slice(0, 200));
+        const retryRaw = await generateText([
+          { role: "system", content: `Return ONLY a JSON array of MCQ questions. No text before or after. Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]` },
+          { role: "user", content: `Convert to JSON array, return ONLY the array:\n\n${combined.slice(0, 4000)}` },
+        ], 3000, isPremium).catch(() => "");
+        rawQs = parseAIJson(retryRaw);
       }
-      
+
       if (!rawQs || !rawQs.length) {
-        return NextResponse.json({ error: "Could not parse questions from the content. The AI may have returned an unexpected format — please try again." }, { status: 422 });
+        return NextResponse.json({ error: "Could not parse questions. Please try again." }, { status: 422 });
       }
 
       const normalized = normalizeQuestions(rawQs);
       const totalFound = normalized.length;
       const needsChoice = totalFound > 0 && totalFound < count;
+      console.log("[generate] found:", totalFound, "requested:", count, "needsChoice:", needsChoice);
       return NextResponse.json({
         questions: normalized.slice(0, count),
-        totalFound, requested: count,
-        needsChoice,
+        totalFound, requested: count, needsChoice,
         notice: needsChoice ? `Only ${totalFound} questions found in this PDF. Try setting your count to ${totalFound}.` : null,
       });
 
     } else {
-      // Text path
       const safe = truncate(content);
       const userMsg = type === "pq_quiz"
         ? `Convert these past questions into a quiz. Return ONLY the JSON array:\n\n${safe}`
@@ -325,11 +270,8 @@ export async function POST(req: NextRequest) {
       const needsChoice = totalFound > 0 && totalFound < count;
       return NextResponse.json({
         questions: normalized.slice(0, count),
-        totalFound, requested: count,
-        needsChoice,
-        notice: needsChoice
-          ? `Only ${totalFound} questions could be generated from this content. Try setting your count to ${totalFound}.`
-          : null,
+        totalFound, requested: count, needsChoice,
+        notice: needsChoice ? `Only ${totalFound} questions could be generated. Try setting your count to ${totalFound}.` : null,
       });
     }
 
