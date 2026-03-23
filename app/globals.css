@@ -184,3 +184,8 @@ body::before { content: ''; position: fixed; inset: 0; background-image: url("da
 
 /* Locked review blur */
 .review-locked { filter: blur(4px); pointer-events: none; user-select: none; }
+
+/* Prevent iOS zoom on input focus */
+input, textarea, select {
+  font-size: 16px !important;
+}
