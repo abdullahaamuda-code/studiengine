@@ -237,10 +237,12 @@ export async function POST(req: NextRequest) {
 
       const normalized = normalizeQuestions(rawQs);
       const totalFound = normalized.length;
+      const needsChoice = totalFound > 0 && totalFound < count;
       return NextResponse.json({
         questions: normalized.slice(0, count),
         totalFound, requested: count,
-        notice: totalFound < count ? `Only ${totalFound} questions found in this PDF. Try setting your count to ${totalFound}.` : null,
+        needsChoice,
+        notice: needsChoice ? `Only ${totalFound} questions found in this PDF. Try setting your count to ${totalFound}.` : null,
       });
 
     } else {
@@ -262,10 +264,12 @@ export async function POST(req: NextRequest) {
 
       const normalized = normalizeQuestions(rawQs);
       const totalFound = normalized.length;
+      const needsChoice = totalFound > 0 && totalFound < count;
       return NextResponse.json({
         questions: normalized.slice(0, count),
         totalFound, requested: count,
-        notice: totalFound < count
+        needsChoice,
+        notice: needsChoice
           ? `Only ${totalFound} questions could be generated from this content. Try setting your count to ${totalFound}.`
           : null,
       });
