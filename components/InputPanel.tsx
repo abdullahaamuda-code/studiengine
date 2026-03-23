@@ -1,4 +1,5 @@
 "use client";
+import LoadingBar from "./LoadingBar";
 import { useState, useRef, DragEvent } from "react";
 import { extractTextFromPDF, formatFileSize, isVisionPayload, parseVisionPayload } from "@/lib/pdf";
 
@@ -136,6 +137,7 @@ export default function InputPanel({ onSubmit, loading, progress = 0, placeholde
         <p style={{ color: "var(--text-muted)", fontSize: 12, lineHeight: 1.5 }}>💡 {hint}</p>
       )}
 
+      <LoadingBar active={loading} isVision={mode === "upload" && !!images?.length} />
       <button className="btn-primary" onClick={handleSubmit} disabled={!canSubmit}
         style={{ padding: "14px 0", borderRadius: 12, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, position: "relative", overflow: "hidden" }}>
         {loading ? (
