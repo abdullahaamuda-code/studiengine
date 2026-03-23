@@ -228,9 +228,11 @@ export async function POST(req: NextRequest) {
       }
 
       // Step 2: ONE Groq call to convert ALL extracted text to questions
-      const rawCombined = extracted.join("\n\n");
-      const combined = truncate(fixLatex(rawCombined), MAX_CHARS_VISION);
-      console.log("[generate] combined:", combined.length, "chars from", extracted.length, "batches");
+const rawCombined = extracted.join("\n\n");
+const combined = truncate(fixLatex(rawCombined), MAX_CHARS_VISION);
+console.log("[generate] combined:", combined.length, "chars from", extracted.length, "batches");
+console.log("[generate] combined snippet:", combined.slice(0, 300));
+
 
       const userMsg = type === "pq_quiz"
         ? `Convert ALL these extracted questions into a JSON array. Extract EVERY question:\n\n${combined}`
