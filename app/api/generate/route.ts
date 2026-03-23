@@ -11,11 +11,34 @@ function truncate(s: string) {
 }
 
 function parseAIJson(raw: string): any {
-  const clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-  const arr = clean.match(/\[[\s\S]*\]/)?.[0];
-  if (!arr) return null;
-  try { return JSON.parse(arr); } catch (_) {}
-  try { return JSON.parse(arr.replace(/\\(?!["\\/bfnrtu])/g, "\\\\")); } catch (_) {}
+  // Strip markdown fences
+  let clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
+  
+  // Try 1: direct parse
+  try { const r = JSON.parse(clean); return Array.isArray(r) ? r : null; } catch (_) {}
+  
+  // Try 2: find array with greedy match from first [ to last ]
+  const start = clean.indexOf("[");
+  const end = clean.lastIndexOf("]");
+  if (start !== -1 && end !== -1 && end > start) {
+    const arr = clean.slice(start, end + 1);
+    try { return JSON.parse(arr); } catch (_) {}
+    // Try 3: fix bad backslashes
+    try { return JSON.parse(arr.replace(/\\(?!["\\/bfnrtu])/g, "\\\\")); } catch (_) {}
+    // Try 4: remove control characters
+    try { return JSON.parse(arr.replace(/[\x00-\x1F\x7F]/g, " ")); } catch (_) {}
+  }
+  
+  // Try 5: extract individual question objects and build array manually
+  const objects: any[] = [];
+  const objRegex = /\{[^{}]*"question"[^{}]*\}/g;
+  let match;
+  while ((match = objRegex.exec(clean)) !== null) {
+    try { objects.push(JSON.parse(match[0])); } catch (_) {}
+  }
+  if (objects.length > 0) return objects;
+  
+  console.error("[parse] all strategies failed, raw sample:", clean.slice(0, 300));
   return null;
 }
 
@@ -229,9 +252,24 @@ export async function POST(req: NextRequest) {
         { role: "user", content: userMsg },
       ], 4000, isPremium);
 
-      const rawQs = parseAIJson(raw);
+      let rawQs = parseAIJson(raw);
+      
+      // If parse failed, retry with a dead-simple prompt
       if (!rawQs || !rawQs.length) {
-        console.error("[generate] parse failed:", raw.slice(0, 200));
+        console.error("[generate] first parse failed, retrying with simple prompt. raw:", raw.slice(0, 200));
+        try {
+          const retryRaw = await generateText([
+            { role: "system", content: `Return ONLY a JSON array of MCQ questions. No text before or after. Format exactly: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]` },
+            { role: "user", content: `Convert this to a JSON question array. Return ONLY the array, nothing else:\n\n${combined.slice(0, 3000)}` },
+          ], 3000, isPremium);
+          rawQs = parseAIJson(retryRaw);
+          console.error("[generate] retry result:", rawQs?.length || 0, "questions");
+        } catch (retryErr: any) {
+          console.error("[generate] retry failed:", retryErr.message);
+        }
+      }
+      
+      if (!rawQs || !rawQs.length) {
         return NextResponse.json({ error: "Could not parse questions from the content. The AI may have returned an unexpected format — please try again." }, { status: 422 });
       }
 
