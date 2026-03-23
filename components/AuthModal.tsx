@@ -6,6 +6,34 @@ import { auth } from "@/lib/firebase";
 
 interface AuthModalProps { onClose: () => void; defaultMode?: "signin" | "signup"; }
 
+function StudiengineLogo() {
+  return (
+    <div style={{ textAlign: "center", marginBottom: 20 }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <svg width="30" height="30" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 8, display: "block" }}>
+          <defs>
+            <linearGradient id="amb" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0a1628"/><stop offset="100%" stopColor="#0c1a2e"/>
+            </linearGradient>
+            <linearGradient id="ams" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#22d3ee"/>
+            </linearGradient>
+          </defs>
+          <rect width="80" height="80" rx="16" fill="url(#amb)"/>
+          <rect x="30" y="12" width="34" height="8" rx="4" fill="#1e3a5f" opacity="0.8"/>
+          <rect x="14" y="24" width="50" height="8" rx="4" fill="#1e3a5f" opacity="0.7"/>
+          <rect x="14" y="36" width="52" height="8" rx="4" fill="#1e3a5f" opacity="0.6"/>
+          <rect x="14" y="48" width="50" height="8" rx="4" fill="#1e3a5f" opacity="0.5"/>
+          <rect x="14" y="60" width="34" height="8" rx="4" fill="#1e3a5f" opacity="0.4"/>
+          <path d="M52 20 C52 20 52 13 40 13 C28 13 24 20 24 27 C24 34 30 37 40 40 C50 43 56 46 56 53 C56 60 52 67 40 67 C28 67 24 60 24 60"
+            fill="none" stroke="url(#ams)" strokeWidth="6.5" strokeLinecap="round"/>
+        </svg>
+        <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)" }} className="gradient-text">Studiengine</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModalProps) {
   const [mode, setMode] = useState<"signin" | "signup" | "choose" | "forgot">("choose");
   const [email, setEmail] = useState("");
@@ -49,32 +77,18 @@ export default function AuthModal({ onClose, defaultMode = "signin" }: AuthModal
 
   function handleGuest() { continueAsGuest(); onClose(); }
 
-  const Logo = () => (
-    <div style={{ textAlign: "center", marginBottom: 20 }}>
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg,#2563eb,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-          </svg>
-        </div>
-        <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)" }} className="gradient-text">Studiengine</span>
-      </div>
-    </div>
-  );
-
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(2,8,23,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div className="glass animate-in" style={{ borderRadius: 20, padding: "28px 24px", width: "100%", maxWidth: 400, position: "relative", maxHeight: "90vh", overflowY: "auto" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 14, right: 14, width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.06)", border: "1px solid var(--border-subtle)", color: "var(--text-muted)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
 
-        <Logo />
+        <StudiengineLogo />
 
         {mode === "choose" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <button className="btn-primary" onClick={() => setMode("signup")} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>
               Create Free Account
             </button>
-            {/* Simple benefit */}
             <div style={{ background: "rgba(37,99,235,0.06)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 10, padding: "10px 14px" }}>
               <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 6 }}>FREE ACCOUNT</p>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
