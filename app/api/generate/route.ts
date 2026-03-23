@@ -5,6 +5,7 @@ const TEXT_MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const BATCH_SIZE = 5;
 const MAX_CHARS = 6000;
+const MAX_CHARS_VISION = 12000; // Vision extracts more text across pages
 
 function truncate(s: string) {
   return s.length <= MAX_CHARS ? s : s.slice(0, MAX_CHARS) + "\n[truncated]";
@@ -188,6 +189,20 @@ async function extractBatch(images: string[], prompt: string): Promise<string> {
 }
 
 // ── Prompts ───────────────────────────────────────────────────────────────────
+function buildVisionConvertPrompt(type: string, count: number): string {
+  const math = `Math: wrap in $...$. E.g. $\\frac{a}{b}$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$.`;
+  const opts = `Options MUST be labeled A. B. C. D. Ignore checkmarks. Relabel if needed.`;
+  if (type === "pq_quiz") return `Convert ALL Nigerian past exam questions from this extracted text into a quiz.
+Return ONLY a JSON array, no markdown. ${math} ${opts}
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","year":""}]
+Extract EVERY SINGLE question you see. Do not stop early. Answer = single letter A/B/C/D. Always include explanation.`;
+  // For notes_quiz, generate exactly count questions
+  return `Nigerian exam AI. Generate EXACTLY ${count} MCQs from the material.
+Return ONLY a JSON array, no markdown. ${math} ${opts}
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]
+Generate EXACTLY ${count} questions. Answer = single letter A/B/C/D. Always include explanation.`;
+}
+
 function buildPrompt(type: string, count: number): string {
   const math = `Math: wrap in $...$. E.g. $\\frac{a}{b}$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$.`;
   const opts = `Options MUST be labeled A. B. C. D. Ignore checkmarks. Relabel if needed.`;
@@ -242,13 +257,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Could not read PDF pages. Try a clearer scan." }, { status: 422 });
       }
 
-      const combined = truncate(extracted.join("\n\n"));
+      const rawCombined = extracted.join("\n\n");
+      const combined = rawCombined.length <= MAX_CHARS_VISION ? rawCombined : rawCombined.slice(0, MAX_CHARS_VISION) + "\n[truncated]";
+      console.log("[generate] combined length:", combined.length, "from", extracted.length, "batches");
+      // For pq_quiz extract ALL found questions — we'll trim to count after
+      // For notes_quiz generate exactly count questions from material
       const userMsg = type === "pq_quiz"
-        ? `Convert ALL these extracted questions into a quiz JSON array:\n\n${combined}`
+        ? `Convert ALL these extracted questions into a JSON array. Extract EVERY question you see, do not limit the count:\n\n${combined}`
         : combined;
 
+      const visionPrompt = buildVisionConvertPrompt(type, count);
       const raw = await generateText([
-        { role: "system", content: prompt },
+        { role: "system", content: visionPrompt },
         { role: "user", content: userMsg },
       ], 4000, isPremium);
 
