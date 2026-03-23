@@ -4,7 +4,6 @@ import InputPanel from "./InputPanel";
 import QuizPlayer from "./QuizPlayer";
 import QuestionCountSelector from "./QuestionCountSelector";
 import UpgradeModal from "./UpgradeModal";
-import QuestionChoiceModal from "./QuestionChoiceModal";
 import { useAuth } from "@/context/AuthContext";
 import { getUsage, canGenerateQuiz, canScanPDF, incrementQuiz, incrementScan, getLimitsForUser } from "@/lib/limits";
 import { useToast } from "./Toast";
@@ -15,10 +14,6 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [suggestedCount, setSuggestedCount] = useState<number | null>(null);
-  const [pendingQuestions, setPendingQuestions] = useState<any[] | null>(null);
-  const [showChoice, setShowChoice] = useState(false);
-  const [filling, setFilling] = useState(false);
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -71,19 +66,8 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       }
       await incrementQuiz(userId);
       if (trimmedImages?.length) await incrementScan(userId);
-      const effectiveCount = Math.min(count, limits.maxQuestions);
-      if (data.needsChoice && data.totalFound > 0 && data.totalFound < effectiveCount) {
-        // Show choice modal instead of starting quiz
-        setPendingQuestions(data.questions || []);
-        setSuggestedCount(data.totalFound);
-        setShowChoice(true);
-        setLoading(false);
-        return;
-      }
-      if (data.notice) {
-        setNotice(data.notice);
-        if (data.totalFound && data.totalFound < count) setSuggestedCount(data.totalFound);
-      }
+
+      if (data.notice) setNotice(data.notice);
       setQuestions(data.questions || []);
       show(`${(data.questions || []).length} questions ready!`, "success");
     } catch (e: any) { setError(e.message || "Network error."); }
@@ -91,45 +75,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   }
 
 
-  async function handleUseFound() {
-    setShowChoice(false);
-    setQuestions(pendingQuestions);
-    setPendingQuestions(null);
-  }
-
-  async function handleFillRemaining() {
-    if (!pendingQuestions || !suggestedCount) return;
-    setFilling(true);
-    const effectiveCount = Math.min(count, limits.maxQuestions);
-    const fillCount = effectiveCount - suggestedCount;
-    const topic = pendingQuestions[0]?.question?.slice(0, 100) || "the same exam subject";
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "fill_remaining", fillCount, topic, existingQuestions: pendingQuestions, isPremium }),
-      });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      const filled = data.questions || [];
-      const merged = [...pendingQuestions, ...filled];
-      // Re-index all IDs sequentially
-      merged.forEach((q, i) => { q.id = i + 1; });
-      setShowChoice(false);
-      setPendingQuestions(null);
-      setFilling(false);
-      setQuestions(merged);
-    } catch (e: any) {
-      // If fill fails just use what we have
-      setShowChoice(false);
-      setPendingQuestions(null);
-      setFilling(false);
-      setQuestions(pendingQuestions);
-      setNotice(`Could not generate additional questions. Starting with ${suggestedCount} found.`);
-    }
-  }
-
-  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); setSuggestedCount(null); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
+  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
 
   return (
     <div className="animate-in">
@@ -144,14 +90,8 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       )}
       <QuestionCountSelector value={count} onChange={setCount} maxAllowed={limits.maxQuestions} />
       {notice && (
-        <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 10, fontSize: 12, color: "#fbbf24", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" as const }}>
-          <span>ℹ️ {notice}</span>
-          {suggestedCount && (
-            <button onClick={() => { setCount(suggestedCount); setNotice(""); setSuggestedCount(null); }}
-              style={{ fontSize: 11, padding: "4px 12px", background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.4)", borderRadius: 20, color: "#fbbf24", cursor: "pointer", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, fontWeight: 600 }}>
-              Use {suggestedCount} →
-            </button>
-          )}
+        <div style={{ marginBottom: 12, padding: "8px 12px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, fontSize: 12, color: "#fbbf24" }}>
+          ℹ️ {notice}
         </div>
       )}
       <InputPanel onSubmit={handleSubmit} loading={loading} progress={progress}
@@ -160,14 +100,9 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
         hint="Questions with A B C D options will be preserved. Without options — AI generates plausible ones." />
       {error && <div style={{ marginTop: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", color: "#f87171", fontSize: 13 }}>⚠️ {error}</div>}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} reason={upgradeReason} />}
-      {showChoice && pendingQuestions && suggestedCount && (
-        <QuestionChoiceModal
           found={suggestedCount}
           requested={Math.min(count, limits.maxQuestions)}
           isPremium={isPremium}
-          onUseFound={handleUseFound}
-          onFillRemaining={handleFillRemaining}
-          filling={filling}
         />
       )}
     </div>
