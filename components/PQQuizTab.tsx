@@ -14,6 +14,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [suggestedCount, setSuggestedCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -54,17 +55,29 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       clearInterval(interval); setProgress(100);
       const data = await res.json();
-      if (!res.ok || data.error) { setError(data.error || "Something went wrong."); setLoading(false); return; }
+      if (!res.ok || data.error) {
+        const errMsg = data.error || "Something went wrong.";
+        // If we know totalFound, show that instead of parse error
+        if (data.totalFound === 0) {
+          setError("No questions could be extracted. Try pasting the text directly instead of uploading.");
+        } else {
+          setError(errMsg);
+        }
+        setLoading(false); return;
+      }
       await incrementQuiz(userId);
       if (trimmedImages?.length) await incrementScan(userId);
-      if (data.notice) setNotice(data.notice);
+      if (data.notice) {
+        setNotice(data.notice);
+        if (data.totalFound && data.totalFound < count) setSuggestedCount(data.totalFound);
+      }
       setQuestions(data.questions || []);
       show(`${(data.questions || []).length} questions ready!`, "success");
     } catch (e: any) { setError(e.message || "Network error."); }
     setLoading(false); setProgress(0);
   }
 
-  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
+  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); setSuggestedCount(null); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
 
   return (
     <div className="animate-in">
@@ -79,8 +92,14 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       )}
       <QuestionCountSelector value={count} onChange={setCount} maxAllowed={limits.maxQuestions} />
       {notice && (
-        <div style={{ marginBottom: 12, padding: "8px 12px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, fontSize: 12, color: "#fbbf24" }}>
-          ℹ️ {notice}
+        <div style={{ marginBottom: 12, padding: "10px 14px", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 10, fontSize: 12, color: "#fbbf24", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" as const }}>
+          <span>ℹ️ {notice}</span>
+          {suggestedCount && (
+            <button onClick={() => { setCount(suggestedCount); setNotice(""); setSuggestedCount(null); }}
+              style={{ fontSize: 11, padding: "4px 12px", background: "rgba(251,191,36,0.2)", border: "1px solid rgba(251,191,36,0.4)", borderRadius: 20, color: "#fbbf24", cursor: "pointer", fontFamily: "var(--font-body)", whiteSpace: "nowrap" as const, fontWeight: 600 }}>
+              Use {suggestedCount} →
+            </button>
+          )}
         </div>
       )}
       <InputPanel onSubmit={handleSubmit} loading={loading} progress={progress}
