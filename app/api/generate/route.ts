@@ -111,7 +111,7 @@ async function callGemini(images: string[], prompt: string): Promise<string> {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 2000, temperature: 0.1 } }),
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 8192, temperature: 0.1 } }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -139,12 +139,17 @@ async function extractBatch(images: string[], prompt: string): Promise<string> {
   }
 }
 
-// Keep LaTeX as-is during extraction — don't convert to plain text
-const EXTRACT_PROMPT = `Extract ALL questions from these exam pages as plain text.
-For each question: include the question number, full question text, all answer options (A B C D), and mark correct answer with [CORRECT] if visible.
-CRITICAL: Preserve ALL LaTeX math EXACTLY. Keep backslashes: \frac not rac, \int not int, \sqrt not sqrt, \lim not lim.
-If you see \frac{1}{x} write it as \frac{1}{x}. Never drop the backslash.
-Extract every single question visible. Be thorough.`;
+// Ask Gemini to return JSON directly — skip the two-step extract+convert
+function buildGeminiPrompt(type: string, count: number): string {
+  return `You are a Nigerian exam question extractor. Extract ALL MCQ questions from these exam pages.
+Return ONLY a valid JSON array. No text before or after. No markdown fences.
+MATH: Wrap ALL math in $...$. Use proper LaTeX: $\\frac{a}{b}$, $\\int_0^1$, $\\sqrt{x}$, $\\lim_{x\\to 0}$, $\\sin(x)$, $x^2$.
+OPTIONS: Label A. B. C. D. always.
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"Brief explanation"}]
+Extract EVERY question visible. Do not stop early. Do not limit count.`;
+}
+
+const EXTRACT_PROMPT = "placeholder";
 
 
 // Fix LaTeX that got broken during vision extraction
@@ -218,43 +223,43 @@ Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."
       const batches: string[][] = [];
       for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
 
-      const extracted: string[] = [];
+      const geminiPrompt = buildGeminiPrompt(type, count);
+      const allQuestions: any[] = [];
+
       for (let b = 0; b < batches.length; b++) {
         try {
-          console.log(`[generate] extracting batch ${b+1}/${batches.length}`);
-          const text = await extractBatch(batches[b], EXTRACT_PROMPT);
-          if (text) { extracted.push(text); console.log(`[generate] batch ${b+1}: ${text.length} chars`); }
-          if (b < batches.length - 1) await new Promise(r => setTimeout(r, 500));
+          console.log(`[generate] batch ${b+1}/${batches.length}`);
+          // Ask Gemini to return JSON directly — no separate conversion step
+          const raw = await callGemini(batches[b], geminiPrompt);
+          console.log(`[generate] batch ${b+1} raw:`, raw.slice(0, 100));
+          const batchQs = parseAIJson(raw);
+          if (Array.isArray(batchQs) && batchQs.length > 0) {
+            allQuestions.push(...batchQs);
+            console.log(`[generate] batch ${b+1}: found ${batchQs.length} questions, total: ${allQuestions.length}`);
+          } else {
+            // Gemini failed to return JSON — fall back to Groq vision extract then convert
+            console.log(`[generate] batch ${b+1}: JSON parse failed, trying Groq fallback`);
+            try {
+              const extracted = await callGroqVision(batches[b], `Extract questions as plain text with options and answers.`);
+              if (extracted) {
+                const fallbackRaw = await generateText([
+                  { role: "system", content: prompt },
+                  { role: "user", content: `Convert to JSON array:\n\n${extracted}` },
+                ], 3000, isPremium);
+                const fallbackQs = parseAIJson(fallbackRaw);
+                if (Array.isArray(fallbackQs)) allQuestions.push(...fallbackQs);
+              }
+            } catch (fe: any) { console.error(`[generate] batch ${b+1} fallback failed:`, fe.message); }
+          }
+          if (b < batches.length - 1) await new Promise(r => setTimeout(r, 300));
         } catch (e: any) { console.error(`[generate] batch ${b+1} failed:`, e.message); }
       }
 
-      if (extracted.length === 0) {
-        return NextResponse.json({ error: "Could not read PDF pages. Try a clearer scan." }, { status: 422 });
+      if (allQuestions.length === 0) {
+        return NextResponse.json({ error: "Could not extract questions from PDF. Try a clearer scan." }, { status: 422 });
       }
 
-      const rawCombined = extracted.join("\n\n");
-      const combined = truncate(fixLatex(rawCombined), MAX_CHARS_VISION);
-      console.log("[generate] combined:", combined.length, "chars from", extracted.length, "batches");
-
-      const userMsg = type === "pq_quiz"
-        ? `Convert ALL these extracted questions into a quiz JSON array. Extract EVERY question, do not limit:\n\n${combined}`
-        : combined;
-
-      let raw = await generateText([
-        { role: "system", content: prompt },
-        { role: "user", content: userMsg },
-      ], 6000, isPremium);
-
-      let rawQs = parseAIJson(raw);
-
-      if (!rawQs || !rawQs.length) {
-        console.error("[generate] parse failed, retrying. raw:", raw.slice(0, 200));
-        const retryRaw = await generateText([
-          { role: "system", content: `Return ONLY a JSON array of MCQ questions. No text before or after. Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]` },
-          { role: "user", content: `Convert to JSON array, return ONLY the array:\n\n${combined.slice(0, 4000)}` },
-        ], 3000, isPremium).catch(() => "");
-        rawQs = parseAIJson(retryRaw);
-      }
+      let rawQs = allQuestions;
 
       if (!rawQs || !rawQs.length) {
         return NextResponse.json({ error: "Could not parse questions. Please try again." }, { status: 422 });
