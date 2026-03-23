@@ -141,9 +141,29 @@ async function extractBatch(images: string[], prompt: string): Promise<string> {
 
 // Keep LaTeX as-is during extraction — don't convert to plain text
 const EXTRACT_PROMPT = `Extract ALL questions from these exam pages as plain text.
-For each question: include the question number, full question text, all answer options (A B C D), and mark the correct answer with [CORRECT] if visible.
-IMPORTANT: Keep ALL mathematical expressions exactly as they appear. Do not convert fractions, integrals, or any math notation.
-Extract every single question visible on the page. Be thorough and complete.`;
+For each question: include the question number, full question text, all answer options (A B C D), and mark correct answer with [CORRECT] if visible.
+CRITICAL: Preserve ALL LaTeX math EXACTLY. Keep backslashes: \frac not rac, \int not int, \sqrt not sqrt, \lim not lim.
+If you see \frac{1}{x} write it as \frac{1}{x}. Never drop the backslash.
+Extract every single question visible. Be thorough.`;
+
+
+// Fix LaTeX that got broken during vision extraction
+// Gemini sometimes strips backslashes: rac{} -> \frac{}, int -> \int etc
+function fixLatex(text: string): string {
+  return text
+    .replace(/\brac\{/g, "\\frac{")           // rac{ -> \frac{
+    .replace(/\bint_/g, "\\int_")              // int_ -> \int_
+    .replace(/\bint\^/g, "\\int^")             // int^ -> \int^
+    .replace(/\blim_/g, "\\lim_")              // lim_ -> \lim_
+    .replace(/\bsqrt\{/g, "\\sqrt{")           // sqrt{ -> \sqrt{
+    .replace(/\btheta\b/g, "\\theta")         // theta -> \theta
+    .replace(/\balpha\b/g, "\\alpha")         // alpha -> \alpha
+    .replace(/\bbeta\b/g, "\\beta")           // beta -> \beta
+    .replace(/\bsigma\b/g, "\\sigma")         // sigma -> \sigma
+    .replace(/\bpi\b/g, "\\pi")               // pi -> \pi
+    .replace(/\bsum_/g, "\\sum_")              // sum_ -> \sum_
+    .replace(/\binfty\b/g, "\\infty");        // infty -> \infty
+}
 
 function buildPrompt(type: string, count: number): string {
   const math = `Math MUST be wrapped in $...$. Examples: $\\frac{a}{b}$, $\\int_0^e$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$. Convert any plain math like (a/b) to $\\frac{a}{b}$.`;
@@ -212,7 +232,8 @@ Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."
         return NextResponse.json({ error: "Could not read PDF pages. Try a clearer scan." }, { status: 422 });
       }
 
-      const combined = truncate(extracted.join("\n\n"), MAX_CHARS_VISION);
+      const rawCombined = extracted.join("\n\n");
+      const combined = truncate(fixLatex(rawCombined), MAX_CHARS_VISION);
       console.log("[generate] combined:", combined.length, "chars from", extracted.length, "batches");
 
       const userMsg = type === "pq_quiz"
