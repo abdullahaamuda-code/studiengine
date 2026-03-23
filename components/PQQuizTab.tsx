@@ -4,6 +4,7 @@ import InputPanel from "./InputPanel";
 import QuizPlayer from "./QuizPlayer";
 import QuestionCountSelector from "./QuestionCountSelector";
 import UpgradeModal from "./UpgradeModal";
+import QuestionChoiceModal from "./QuestionChoiceModal";
 import { useAuth } from "@/context/AuthContext";
 import { getUsage, canGenerateQuiz, canScanPDF, incrementQuiz, incrementScan, getLimitsForUser } from "@/lib/limits";
 import { useToast } from "./Toast";
@@ -15,6 +16,9 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [suggestedCount, setSuggestedCount] = useState<number | null>(null);
+  const [pendingQuestions, setPendingQuestions] = useState<any[] | null>(null);
+  const [showChoice, setShowChoice] = useState(false);
+  const [filling, setFilling] = useState(false);
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -67,6 +71,15 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       }
       await incrementQuiz(userId);
       if (trimmedImages?.length) await incrementScan(userId);
+      const effectiveCount = Math.min(count, limits.maxQuestions);
+      if (data.needsChoice && data.totalFound > 0 && data.totalFound < effectiveCount) {
+        // Show choice modal instead of starting quiz
+        setPendingQuestions(data.questions || []);
+        setSuggestedCount(data.totalFound);
+        setShowChoice(true);
+        setLoading(false);
+        return;
+      }
       if (data.notice) {
         setNotice(data.notice);
         if (data.totalFound && data.totalFound < count) setSuggestedCount(data.totalFound);
@@ -75,6 +88,35 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       show(`${(data.questions || []).length} questions ready!`, "success");
     } catch (e: any) { setError(e.message || "Network error."); }
     setLoading(false); setProgress(0);
+  }
+
+
+  async function handleUseFound() {
+    setShowChoice(false);
+    setQuestions(pendingQuestions);
+    setPendingQuestions(null);
+  }
+
+  async function handleFillRemaining() {
+    if (!pendingQuestions || !suggestedCount) return;
+    setFilling(true);
+    const fillCount = count - suggestedCount;
+    const topic = pendingQuestions[0]?.question?.slice(0, 80) || "the subject";
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fill_remaining", fillCount, topic, existingQuestions: pendingQuestions, isPremium }),
+      });
+      const data = await res.json();
+      const filled = data.questions || [];
+      setQuestions([...pendingQuestions, ...filled]);
+    } catch {
+      setQuestions(pendingQuestions);
+    }
+    setFilling(false);
+    setShowChoice(false);
+    setPendingQuestions(null);
   }
 
   if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); setSuggestedCount(null); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
@@ -108,6 +150,16 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
         hint="Questions with A B C D options will be preserved. Without options — AI generates plausible ones." />
       {error && <div style={{ marginTop: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", color: "#f87171", fontSize: 13 }}>⚠️ {error}</div>}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} reason={upgradeReason} />}
+      {showChoice && pendingQuestions && suggestedCount && (
+        <QuestionChoiceModal
+          found={suggestedCount}
+          requested={Math.min(count, limits.maxQuestions)}
+          isPremium={isPremium}
+          onUseFound={handleUseFound}
+          onFillRemaining={handleFillRemaining}
+          filling={filling}
+        />
+      )}
     </div>
   );
 }
