@@ -54,12 +54,12 @@ function friendlyError(msg: string): string {
   return `Error: ${msg.slice(0, 120)}`;
 }
 
-async function callGroq(apiKey: string, model: string, messages: any[], maxTokens = 3000): Promise<string> {
+async function callGroq(apiKey: string, model: string, messages: any[], maxTokens = 3000, maxCap = 8000): Promise<string> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(GROQ_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, temperature: 0.3, max_tokens: maxTokens, messages }),
+      body: JSON.stringify({ model, temperature: 0.3, max_tokens: Math.min(maxTokens, maxCap), messages }),
     });
     if (res.status === 429 || res.status === 503) {
       if (attempt < 3) { await new Promise(r => setTimeout(r, attempt * 5000)); continue; }
@@ -243,7 +243,7 @@ Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."
       let raw = await generateText([
         { role: "system", content: prompt },
         { role: "user", content: userMsg },
-      ], 4000, isPremium);
+      ], 6000, isPremium);
 
       let rawQs = parseAIJson(raw);
 
