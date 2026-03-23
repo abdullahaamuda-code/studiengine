@@ -99,7 +99,7 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", margin: 0, fontFamily: "var(--font-display)" }}>Install Studiengine</p>
-            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Study faster — offline access, no browser needed</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Study faster — quick access, works like a native app</p>
           </div>
           <button onClick={handleDismiss} style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 18, padding: 4, lineHeight: 1, flexShrink: 0 }}>×</button>
         </div>
