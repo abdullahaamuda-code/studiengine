@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
       const rawQs = parseAIJson(raw);
       if (!rawQs || !rawQs.length) {
         console.error("[generate] parse failed:", raw.slice(0, 200));
-        return NextResponse.json({ error: "Could not parse questions. Please try again." }, { status: 422 });
+        return NextResponse.json({ error: "Could not parse questions from the content. The AI may have returned an unexpected format — please try again." }, { status: 422 });
       }
 
       const normalized = normalizeQuestions(rawQs);
@@ -240,7 +240,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         questions: normalized.slice(0, count),
         totalFound, requested: count,
-        notice: totalFound < count ? `Found ${totalFound} questions in this PDF (you selected ${count}).` : null,
+        notice: totalFound < count ? `Only ${totalFound} questions found in this PDF. Try setting your count to ${totalFound}.` : null,
       });
 
     } else {
@@ -265,7 +265,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         questions: normalized.slice(0, count),
         totalFound, requested: count,
-        notice: totalFound < count ? `Generated ${totalFound} questions from this content (you selected ${count}).` : null,
+        notice: totalFound < count
+          ? `Only ${totalFound} questions could be generated from this content. Try setting your count to ${totalFound}.`
+          : null,
       });
     }
 
