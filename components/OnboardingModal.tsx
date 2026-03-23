@@ -3,6 +3,29 @@ import { useState, useEffect } from "react";
 
 const STORAGE_KEY = "studiengine_onboarded_v2";
 
+function StudiengineLogo({ size = 26 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 7, display: "block" }}>
+      <defs>
+        <linearGradient id="ob" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0a1628"/><stop offset="100%" stopColor="#0c1a2e"/>
+        </linearGradient>
+        <linearGradient id="os" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#22d3ee"/>
+        </linearGradient>
+      </defs>
+      <rect width="80" height="80" rx="16" fill="url(#ob)"/>
+      <rect x="30" y="12" width="34" height="8" rx="4" fill="#1e3a5f" opacity="0.8"/>
+      <rect x="14" y="24" width="50" height="8" rx="4" fill="#1e3a5f" opacity="0.7"/>
+      <rect x="14" y="36" width="52" height="8" rx="4" fill="#1e3a5f" opacity="0.6"/>
+      <rect x="14" y="48" width="50" height="8" rx="4" fill="#1e3a5f" opacity="0.5"/>
+      <rect x="14" y="60" width="34" height="8" rx="4" fill="#1e3a5f" opacity="0.4"/>
+      <path d="M52 20 C52 20 52 13 40 13 C28 13 24 20 24 27 C24 34 30 37 40 40 C50 43 56 46 56 53 C56 60 52 67 40 67 C28 67 24 60 24 60"
+        fill="none" stroke="url(#os)" strokeWidth="6.5" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 export default function OnboardingModal() {
   const [show, setShow] = useState(false);
 
@@ -40,12 +63,7 @@ export default function OnboardingModal() {
           borderRadius: "20px 20px 0 0",
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#2563eb,#0891b2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-              </svg>
-
-            </div>
+            <StudiengineLogo size={26} />
             <span style={{ fontSize: 16, fontWeight: 800, fontFamily: "var(--font-display)" }} className="gradient-text">Studiengine</span>
           </div>
           <button onClick={dismiss} style={{
@@ -65,13 +83,12 @@ export default function OnboardingModal() {
             Built for Nigerian students — JAMB, WAEC, NECO, and university exams. Upload your notes or past questions and let AI do the heavy lifting.
           </p>
 
-          {/* Features grid — 2 cols on wider screens */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 22 }}>
             {[
               { icon: "📝", title: "Notes → CBT", desc: "Paste notes or upload a PDF, get instant CBT practice questions" },
               { icon: "🔍", title: "PQ Analyzer", desc: "Spot repeated topics and patterns across years" },
               { icon: "⚡", title: "PQ → CBT", desc: "Convert past questions into an interactive CBT Practice" },
-              { icon: "🧮", title: "Calculator", desc: "Built-in calculator for math and science" },
+              { icon: "🧮", title: "Calculator", desc: "Built-in scientific calculator for math and science" },
             ].map(f => (
               <div key={f.title} style={{
                 display: "flex", gap: 10, alignItems: "flex-start",
@@ -89,7 +106,6 @@ export default function OnboardingModal() {
             ))}
           </div>
 
-          {/* Exam tags */}
           <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
             {["JAMB", "WAEC", "NECO", "University"].map(tag => (
               <span key={tag} style={{ fontSize: 10, color: "var(--text-muted)", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)", padding: "4px 12px", borderRadius: 20 }}>{tag}</span>
