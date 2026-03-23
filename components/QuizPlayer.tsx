@@ -1,5 +1,3 @@
-quiz player 
-
 "use client";
 import { useState, useEffect } from "react";
 import MathText from "./MathText";
