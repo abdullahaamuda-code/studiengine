@@ -31,51 +31,57 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
 
   async function handleSubmit(content: string, images?: string[]) {
     if (!userId) { setError("Please sign in or continue as guest first."); return; }
-    setError(""); setNotice(""); setLoading(true); setProgress(0);
+    setError(""); setNotice(""); setLoading(true); setProgress(10);
+
     try {
       const usage = await getUsage(userId);
       if (!canGenerateQuiz(usage, isGuest)) {
         setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
-        setShowUpgrade(true); setLoading(false); return;
+        setShowUpgrade(true); setLoading(false); setProgress(0); return;
       }
+
       const trimmedImages = images ? images.slice(0, limits.maxPages) : undefined;
-      const batches = trimmedImages ? Math.ceil(trimmedImages.length / 5) : 1;
-      let prog = 10; setProgress(prog);
-      const interval = setInterval(() => { prog = Math.min(prog + (90 / batches) / 3, 90); setProgress(Math.round(prog)); }, 1000);
+      const interval = setInterval(() => setProgress(p => Math.min(p + 2, 88)), 800);
 
       const body = trimmedImages?.length
         ? { type: "notes_quiz", content: "", images: trimmedImages, count, isPremium }
         : { type: "notes_quiz", content, count, isPremium };
 
-      const res = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       clearInterval(interval); setProgress(100);
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        const errMsg = data.error || "Something went wrong.";
-        // If we know totalFound, show that instead of parse error
-        if (data.totalFound === 0) {
-          setError("No questions could be extracted. Try pasting the text directly instead of uploading.");
-        } else {
-          setError(errMsg);
-        }
-        setLoading(false); return;
-      }
-      await incrementQuiz(userId);
 
+      const data = await res.json();
+      if (!res.ok || data.error) { setError(data.error || "Something went wrong."); setLoading(false); setProgress(0); return; }
+
+      await incrementQuiz(userId);
       if (data.notice) setNotice(data.notice);
       setQuestions(data.questions || []);
       show(`${(data.questions || []).length} questions generated!`, "success");
-    } catch (e: any) { setError(e.message || "Network error."); }
+    } catch (e: any) {
+      setError(e.message || "Network error.");
+    }
     setLoading(false); setProgress(0);
   }
 
-
-  if (questions) return <QuizPlayer questions={questions} onReset={() => { setQuestions(null); setNotice(""); }} notice={notice} userId={userId} isPremium={isPremium} onComplete={onCBTComplete} />;
+  if (questions) return (
+    <QuizPlayer
+      questions={questions}
+      onReset={() => { setQuestions(null); setNotice(""); }}
+      userId={userId}
+      isPremium={isPremium}
+      onComplete={onCBTComplete}
+      notice={notice}
+    />
+  );
 
   return (
     <div className="animate-in">
       <p style={{ color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.65, marginBottom: 20 }}>
-        Paste your lecture notes or upload a PDF — get CBT practice questions instantly.
+        Paste your lecture notes or past questions — get CBT practice questions instantly.
       </p>
       {usageInfo && !isPremium && (
         <div style={{ marginBottom: 14, padding: "8px 12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 8, fontSize: 12, color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
@@ -89,15 +95,16 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
           ℹ️ {notice}
         </div>
       )}
-      <InputPanel onSubmit={handleSubmit} loading={loading} progress={progress}
+      <InputPanel
+        onSubmit={handleSubmit}
+        loading={loading}
+        progress={progress}
         placeholder={`Paste your lecture notes here...\n\nAny subject — Chemistry, Economics, Government, Biology, Physics, Mathematics...`}
         buttonLabel={`Generate ${count} CBT Questions →`}
-        hint="Works best with at least 2-3 paragraphs of notes." />
+        hint="Works best with at least 2-3 paragraphs of notes."
+      />
       {error && <div style={{ marginTop: 12, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "10px 14px", color: "#f87171", fontSize: 13 }}>⚠️ {error}</div>}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} reason={upgradeReason} />}
-          isPremium={isPremium}
-        />
-      )}
     </div>
   );
 }
