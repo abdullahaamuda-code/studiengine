@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+// if you put parseAIJson in a separate file, import it:
+// import { parseAIJson } from "@/lib/parseAIJson";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const TEXT_MODEL = "llama-3.3-70b-versatile";
@@ -6,20 +8,57 @@ const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const BATCH_SIZE = 5;
 const MAX_CHARS = 6000;
 
+// ---------- parser ----------
+function parseAIJson(raw: string): any {
+  if (!raw) return null;
+
+  let clean = raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/gi, "")
+    .trim();
+
+  if (/^Request Entity Too Large|^<html|^<!doctype html|^Rate limit/i.test(clean)) {
+    return null;
+  }
+
+  const arrMatch = clean.match(/\[[\s\S]*\]/);
+  const objMatch = clean.match(/\{[\s\S]*\}/);
+  const jsonStr = arrMatch?.[0] ?? objMatch?.[0];
+
+  if (!jsonStr) {
+    const objects: any[] = [];
+    const objRegex = /\{[^{}]*"question"[^{}]*\}/g;
+    let m;
+    while ((m = objRegex.exec(clean)) !== null) {
+      try { objects.push(JSON.parse(m[0])); } catch (_) {}
+    }
+    return objects.length ? objects : null;
+  }
+
+  try { return JSON.parse(jsonStr); } catch (_) {}
+
+  try {
+    return JSON.parse(
+      jsonStr.replace(/\\(?!["\\\/bfnrtu])/g, "\\\\")
+    );
+  } catch (_) {}
+
+  try { return JSON.parse(jsonStr.replace(/\\/g, "")); } catch (_) {}
+
+  const objects: any[] = [];
+  const objRegex2 = /\{[^{}]*"question"[^{}]*\}/g;
+  let m2;
+  while ((m2 = objRegex2.exec(jsonStr)) !== null) {
+    try { objects.push(JSON.parse(m2[0])); } catch (_) {}
+  }
+  return objects.length ? objects : null;
+}
+// ----------------------------
+
 function truncate(s: string) {
   return s.length <= MAX_CHARS ? s : s.slice(0, MAX_CHARS) + "\n[truncated]";
 }
 
-function parseAIJson(raw: string): any {
-  const clean = raw.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-  const arr = clean.match(/\[[\s\S]*\]/)?.[0];
-  if (!arr) return null;
-  try { return JSON.parse(arr); } catch (_) {}
-  try { return JSON.parse(arr.replace(/\\(?!["\\\/bfnrtu])/g, "\\\\")); } catch (_) {}
-  return null;
-}
-
-// enforce short non-empty explanations
 function normalizeQuestions(qs: any[]): any[] {
   if (!Array.isArray(qs)) return [];
   const L = ["A","B","C","D"];
@@ -30,20 +69,7 @@ function normalizeQuestions(qs: any[]): any[] {
       return `${L[j]}. ${text}`;
     });
     const ans = String(q.answer || "A").trim().toUpperCase().match(/^([ABCD])/)?.[1] || "A";
-
-    let explanation = "";
-    if (typeof q.explanation === "string") {
-      explanation = q.explanation.trim();
-    }
-    if (!explanation) {
-      explanation = "The chosen option is correct based on the information in the question and options.";
-    }
-    // hard cap explanation length so it doesn't go wild
-    if (explanation.length > 400) {
-      explanation = explanation.slice(0, 400) + "...";
-    }
-
-    return { ...q, id: q.id || i + 1, options: opts, answer: ans, explanation };
+    return { ...q, id: q.id || i + 1, options: opts, answer: ans };
   });
 }
 
@@ -54,7 +80,6 @@ function friendlyError(msg: string): string {
   return `Error: ${msg.slice(0, 120)}`;
 }
 
-// ── Single Groq key call ──────────────────────────────────────────────────────
 async function callGroq(apiKey: string, model: string, messages: any[], maxTokens = 3000): Promise<string> {
   for (let attempt = 1; attempt <= 3; attempt++) {
     const res = await fetch(GROQ_URL, {
@@ -75,7 +100,6 @@ async function callGroq(apiKey: string, model: string, messages: any[], maxToken
   throw new Error("rate limited");
 }
 
-// ── OpenRouter fallback ───────────────────────────────────────────────────────
 async function callOpenRouter(messages: any[], maxTokens = 3000): Promise<string> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("No OpenRouter key");
@@ -99,7 +123,6 @@ async function callOpenRouter(messages: any[], maxTokens = 3000): Promise<string
   return (await res.json()).choices?.[0]?.message?.content || "";
 }
 
-// ── Text generation with full fallback chain ──────────────────────────────────
 async function generateText(messages: any[], maxTokens = 3000, isPremium = false): Promise<string> {
   const keys = [
     isPremium ? process.env.GROQ_PREMIUM_KEY : null,
@@ -127,7 +150,6 @@ async function generateText(messages: any[], maxTokens = 3000, isPremium = false
   return await callOpenRouter(messages, maxTokens);
 }
 
-// ── Gemini vision ─────────────────────────────────────────────────────────────
 async function callGemini(images: string[], prompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw new Error("No Gemini key");
@@ -146,7 +168,6 @@ async function callGemini(images: string[], prompt: string): Promise<string> {
   return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
-// ── Groq vision fallback ──────────────────────────────────────────────────────
 async function callGroqVision(images: string[], prompt: string): Promise<string> {
   const keys = [
     process.env.GROQ_VISION_KEY,
@@ -167,7 +188,6 @@ async function callGroqVision(images: string[], prompt: string): Promise<string>
   throw new Error("Vision AI busy. Please try again.");
 }
 
-// ── Extract text from image batch ─────────────────────────────────────────────
 async function extractBatch(images: string[], prompt: string): Promise<string> {
   try {
     return await callGemini(images, prompt);
@@ -177,18 +197,17 @@ async function extractBatch(images: string[], prompt: string): Promise<string> {
   }
 }
 
-// ── Prompts ───────────────────────────────────────────────────────────────────
 function buildPrompt(type: string, count: number): string {
   const math = `Math: wrap in $...$. E.g. $\\\\frac{a}{b}$, $\\\\lim_{x\\\\to 0}$, $\\\\sqrt{x}$, $x^2$, $\\\\sin(x)$.`;
-  const opts = `Options MUST be labeled A. B. C. D. Ignore checkmarks. Relabel if needed. Explanations MUST be 1–3 sentences max.`;
+  const opts = `Options MUST be labeled A. B. C. D. Ignore checkmarks. Relabel if needed.`;
   if (type === "notes_quiz") return `Nigerian exam AI. Generate EXACTLY ${count} MCQs from the material.
 Return ONLY a JSON array, no markdown. ${math} ${opts}
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"short explanation"}]
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]
 Generate EXACTLY ${count} questions. Answer = single letter A/B/C/D. Always include explanation.`;
   if (type === "pq_quiz") return `Convert Nigerian past exam questions into a quiz.
 Return ONLY a JSON array, no markdown. ${math} ${opts}
-Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"short explanation","year":""}]
-Extract as many questions as you can see (do not stop early). Answer = single letter A/B/C/D. Always include explanation.`;
+Format: [{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"...","year":""}]
+Extract up to ${count} questions. Answer = single letter A/B/C/D. Always include explanation.`;
   return "";
 }
 
@@ -197,7 +216,6 @@ For each question include the question text, all options (A B C D), and mark cor
 For math: write fractions as (a/b), limits as lim(x->0), roots as sqrt(x), powers as x^2.
 Extract every single question visible. Be thorough.`;
 
-// ── Main handler ──────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const { type, content, images, count = 10, isPremium = false } = await req.json();
@@ -212,7 +230,6 @@ export async function POST(req: NextRequest) {
     if (!prompt) return NextResponse.json({ error: "Invalid type: " + type }, { status: 400 });
 
     if (images && images.length > 0) {
-      // Vision path: extract text from all pages, then convert to questions
       const batches: string[][] = [];
       for (let i = 0; i < images.length; i += BATCH_SIZE) batches.push(images.slice(i, i + BATCH_SIZE));
 
@@ -229,7 +246,10 @@ export async function POST(req: NextRequest) {
       }
 
       if (extracted.length === 0) {
-        return NextResponse.json({ error: "Could not read PDF pages. Try a clearer scan." }, { status: 422 });
+        return NextResponse.json(
+          { error: "Could not read PDF pages. Try a clearer scan or fewer pages." },
+          { status: 422 }
+        );
       }
 
       const combined = truncate(extracted.join("\n\n"));
@@ -241,27 +261,40 @@ TEXT:
 ${combined}`
         : combined;
 
-      const raw = await generateText([
-        { role: "system", content: prompt },
-        { role: "user", content: userMsg },
-      ], 3500, isPremium);
+      const raw = await generateText(
+        [
+          { role: "system", content: prompt },
+          { role: "user", content: userMsg },
+        ],
+        4000,
+        isPremium
+      );
 
       const rawQs = parseAIJson(raw);
       if (!rawQs || !rawQs.length) {
         console.error("[generate] parse failed:", raw.slice(0, 200));
-        return NextResponse.json({ error: "Could not parse questions from the content. The AI may have returned an unexpected format — please try again." }, { status: 422 });
+        return NextResponse.json(
+          {
+            error:
+              "We couldn’t read clear questions from this scan. The pages may be too blurry or too long. Try fewer pages or a clearer PDF and try again.",
+          },
+          { status: 422 }
+        );
       }
 
       const normalized = normalizeQuestions(rawQs);
       const totalFound = normalized.length;
       return NextResponse.json({
         questions: normalized.slice(0, count),
-        totalFound, requested: count,
-        notice: totalFound < count ? `Only ${totalFound} questions found in this PDF. Try setting your count to ${totalFound}.` : null,
+        totalFound,
+        requested: count,
+        notice:
+          totalFound < count
+            ? `Only ${totalFound} questions found in this PDF. Try setting your count to ${totalFound}.`
+            : null,
       });
 
     } else {
-      // Text path
       const safe = truncate(content);
       const userMsg = type === "pq_quiz"
         ? `The text below is a list of past exam questions. Convert EVERY question you see into JSON objects.
@@ -271,24 +304,33 @@ TEXT:
 ${safe}`
         : safe;
 
-      const raw = await generateText([
-        { role: "system", content: prompt },
-        { role: "user", content: userMsg },
-      ], 3000, isPremium);
+      const raw = await generateText(
+        [
+          { role: "system", content: prompt },
+          { role: "user", content: userMsg },
+        ],
+        3000,
+        isPremium
+      );
 
       const rawQs = parseAIJson(raw);
       if (!rawQs || !rawQs.length) {
-        return NextResponse.json({ error: "Could not generate questions. Please try again." }, { status: 422 });
+        return NextResponse.json(
+          { error: "Could not generate questions. Please try again." },
+          { status: 422 }
+        );
       }
 
       const normalized = normalizeQuestions(rawQs);
       const totalFound = normalized.length;
       return NextResponse.json({
         questions: normalized.slice(0, count),
-        totalFound, requested: count,
-        notice: totalFound < count
-          ? `Only ${totalFound} questions could be generated from this content. Try setting your count to ${totalFound}.`
-          : null,
+        totalFound,
+        requested: count,
+        notice:
+          totalFound < count
+            ? `Only ${totalFound} questions could be generated from this content. Try setting your count to ${totalFound}.`
+            : null,
       });
     }
 
