@@ -75,7 +75,7 @@ function HomeInner() {
       <div className="orb orb-1" /><div className="orb orb-2" /><div className="orb orb-3" />
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", backgroundImage: `linear-gradient(rgba(56,139,253,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(56,139,253,0.03) 1px, transparent 1px)`, backgroundSize: "60px 60px" }} />
 
-      <Navbar />
+      <Navbar defaultAuthMode={searchParams.get("mode") as "signin" | "signup" | undefined} />
 
       {/* Theme toggle — fixed top right below navbar */}
       <button onClick={toggle} style={{
