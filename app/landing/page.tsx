@@ -559,9 +559,7 @@ export default function LandingPage() {
                   maxWidth: 460,
                 }}
               >
-                Paste your study material and get instant multiple-choice
-                questions with answers and explanations. Perfect for JAMB, WAEC,
-                NECO, POST-UTME, and university tests.
+Paste your study material and get instant multiple-choice questions with answers and explanations — plus trends from your past questions so you know what to focus on.
               </p>
               <div
                 style={{
