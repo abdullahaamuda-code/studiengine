@@ -356,6 +356,23 @@ export default function LandingPage() {
             gap: 6px;
           }
         }
+         nav::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      rgba(56,139,253,0),
+      rgba(56,139,253,0.7),
+      rgba(8,145,178,0.7),
+      rgba(56,139,253,0)
+    );
+    box-shadow: 0 0 12px rgba(37,99,235,0.6);
+    pointer-events: none;
+  }
       `}</style>
 
       {/* Background bubbles */}
@@ -401,18 +418,19 @@ export default function LandingPage() {
 
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* Fixed Navbar */}
-        <nav
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 100,
-            background: "rgba(3,8,15,0.85)",
-            backdropFilter: "blur(20px)",
-            borderBottom: "1px solid rgba(56,139,253,0.1)",
-          }}
-        >
+<nav
+  style={{
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    background: "rgba(3,8,15,0.85)",
+    backdropFilter: "blur(20px)",
+    boxShadow: "0 10px 25px rgba(15,23,42,0.9)",
+  }}
+>
+
           <div
             style={{
               maxWidth: 960,
