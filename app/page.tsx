@@ -16,10 +16,10 @@ export default function Root() {
         localStorage.getItem("studiengine_theme"));
 
     if (returning) {
-      // keep queries, e.g. /?mode=signup -> /app?mode=signup
+      // e.g. /?mode=signup -> /app?mode=signup
       router.replace(params ? `/app?${params}` : "/app");
     } else {
-      // first time: /landing or /landing?mode=signup /landing?guest=1
+      // e.g. /?mode=signup -> /landing?mode=signup
       router.replace(params ? `/landing?${params}` : "/landing");
     }
   }, [router, searchParams]);
