@@ -44,19 +44,24 @@ function HomeInner() {
 
   const isLoggedIn = !!user || isGuest;
 
-  // Handle query params from landing page
+  // Handle query params from landing/root
   useEffect(() => {
     if (loading) return;
+
     const mode = searchParams.get("mode");
     const guest = searchParams.get("guest");
+
+    // guest=1 → continue as guest if not logged in
     if (guest === "1" && !user && !isGuest) {
       continueAsGuest();
-    } else if (mode === "signin" && !user && !isGuest) {
+      return;
+    }
+
+    // mode=signin or mode=signup → open auth modal if not logged in
+    if ((mode === "signin" || mode === "signup") && !user && !isGuest) {
       setShowAuth(true);
     }
-  }, [loading, searchParams]);
-
-
+  }, [loading, searchParams, user, isGuest, continueAsGuest]);
 
   // Register service worker
   useEffect(() => {
@@ -66,26 +71,31 @@ function HomeInner() {
   }, []);
 
   function handleCBTComplete() {
-    // Trigger install prompt after finishing a CBT
     setShowInstall(true);
   }
+
+  const defaultAuthMode = searchParams.get("mode") as "signin" | "signup" | null;
 
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
       <div className="orb orb-1" /><div className="orb orb-2" /><div className="orb orb-3" />
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", backgroundImage: `linear-gradient(rgba(56,139,253,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(56,139,253,0.03) 1px, transparent 1px)`, backgroundSize: "60px 60px" }} />
 
-      <Navbar defaultAuthMode={searchParams.get("mode") as "signin" | "signup" | undefined} />
+      <Navbar defaultAuthMode={defaultAuthMode || undefined} />
 
-      {/* Theme toggle — fixed top right below navbar */}
-      <button onClick={toggle} style={{
-        position: "fixed", top: 64, right: 16, zIndex: 40,
-        width: 34, height: 34, borderRadius: 10,
-        background: "var(--bg-card)", backdropFilter: "blur(10px)",
-        border: "1px solid var(--border-glass)", cursor: "pointer",
-        fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
-      }} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+      {/* Theme toggle */}
+      <button
+        onClick={toggle}
+        style={{
+          position: "fixed", top: 64, right: 16, zIndex: 40,
+          width: 34, height: 34, borderRadius: 10,
+          background: "var(--bg-card)", backdropFilter: "blur(10px)",
+          border: "1px solid var(--border-glass)", cursor: "pointer",
+          fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
+        }}
+        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      >
         {theme === "dark" ? "☀️" : "🌙"}
       </button>
 
@@ -101,18 +111,42 @@ function HomeInner() {
         {!isLoggedIn && !loading && (
           <div style={{ marginBottom: 20, padding: "12px 16px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: 0 }}>Sign in to start using Studiengine</p>
-            <button onClick={() => setShowAuth(true)} className="btn-primary" style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, whiteSpace: "nowrap", flexShrink: 0 }}>Get Started</button>
+            <button
+              onClick={() => setShowAuth(true)}
+              className="btn-primary"
+              style={{ padding: "7px 16px", borderRadius: 8, fontSize: 13, whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              Get Started
+            </button>
           </div>
         )}
 
         {/* Tabs */}
         <div className="animate-in glass-static" style={{ borderRadius: 14, padding: 5, marginBottom: 20, display: "flex", gap: 4 }}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
               className={tab === t.id ? "tab-active" : ""}
-              style={{ flex: 1, padding: "10px 2px", borderRadius: 10, border: "1px solid transparent", background: "transparent", cursor: "pointer", transition: "all 0.2s", fontFamily: "var(--font-body)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+              style={{
+                flex: 1,
+                padding: "10px 2px",
+                borderRadius: 10,
+                border: "1px solid transparent",
+                background: "transparent",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                fontFamily: "var(--font-body)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
               <span style={{ color: tab === t.id ? "#60a5fa" : "var(--text-muted)", display: "flex" }}>{t.icon}</span>
-              <span style={{ fontSize: 9, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#93c5fd" : "var(--text-muted)", whiteSpace: "nowrap", textAlign: "center" }}>{t.shortLabel}</span>
+              <span style={{ fontSize: 9, fontWeight: tab === t.id ? 700 : 400, color: tab === t.id ? "#93c5fd" : "var(--text-muted)", whiteSpace: "nowrap", textAlign: "center" }}>
+                {t.shortLabel}
+              </span>
             </button>
           ))}
         </div>
@@ -133,7 +167,13 @@ function HomeInner() {
               <p style={{ fontSize: 32, marginBottom: 12 }}>🎓</p>
               <p style={{ fontSize: 16, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8, fontFamily: "var(--font-display)" }}>Ready to ace your exams?</p>
               <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 20 }}>Sign in or continue as guest to get started.</p>
-              <button onClick={() => setShowAuth(true)} className="btn-primary" style={{ padding: "13px 28px", borderRadius: 12, fontSize: 14 }}>Get Started — It's Free</button>
+              <button
+                onClick={() => setShowAuth(true)}
+                className="btn-primary"
+                style={{ padding: "13px 28px", borderRadius: 12, fontSize: 14 }}
+              >
+                Get Started — It&apos;s Free
+              </button>
             </div>
           )}
         </div>
@@ -145,14 +185,19 @@ function HomeInner() {
 
       {/* Floating calculator */}
       {isLoggedIn && (
-        <button onClick={() => setShowCalc(c => !c)} style={{
-          position: "fixed", bottom: 24, right: 16, zIndex: 55,
-          width: 48, height: 48, borderRadius: "50%",
-          background: showCalc ? "linear-gradient(135deg,#2563eb,#0891b2)" : "rgba(8,20,40,0.9)",
-          border: "1px solid rgba(59,130,246,0.3)", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.4)", fontSize: 18, transition: "all 0.2s",
-        }}>🧮</button>
+        <button
+          onClick={() => setShowCalc(c => !c)}
+          style={{
+            position: "fixed", bottom: 24, right: 16, zIndex: 55,
+            width: 48, height: 48, borderRadius: "50%",
+            background: showCalc ? "linear-gradient(135deg,#2563eb,#0891b2)" : "rgba(8,20,40,0.9)",
+            border: "1px solid rgba(59,130,246,0.3)", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.4)", fontSize: 18, transition: "all 0.2s",
+          }}
+        >
+          🧮
+        </button>
       )}
 
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
@@ -165,5 +210,9 @@ function HomeInner() {
 }
 
 export default function Home() {
-  return <Suspense><HomeInner /></Suspense>;
+  return (
+    <Suspense>
+      <HomeInner />
+    </Suspense>
+  );
 }
