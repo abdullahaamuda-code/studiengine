@@ -1,10 +1,10 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
-function StudiengineLogo({ size = 36 }: { size?: number }) {
+function StudiengineLogo({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 10, display: "block", flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 8, display: "block", flexShrink: 0 }}>
       <defs>
         <linearGradient id="lb" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#0a1628"/><stop offset="100%" stopColor="#0c1a2e"/></linearGradient>
         <linearGradient id="ls" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#22d3ee"/></linearGradient>
@@ -20,165 +20,329 @@ function StudiengineLogo({ size = 36 }: { size?: number }) {
   );
 }
 
+// Floating bubble
+function Bubble({ x, y, size, delay, duration }: { x: number; y: number; size: number; delay: number; duration: number }) {
+  return (
+    <div style={{
+      position: "absolute", left: `${x}%`, top: `${y}%`,
+      width: size, height: size, borderRadius: "50%",
+      background: `radial-gradient(circle at 30% 30%, rgba(59,130,246,0.15), rgba(8,145,178,0.05))`,
+      border: "1px solid rgba(59,130,246,0.1)",
+      animation: `float ${duration}s ease-in-out ${delay}s infinite`,
+      pointerEvents: "none",
+    }} />
+  );
+}
+
+// Fade-in on scroll
+function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(24px)", transition: `opacity 0.6s ease ${delay}s, transform 0.6s ease ${delay}s` }}>
+      {children}
+    </div>
+  );
+}
+
 const FEATURES = [
-  { icon: "📝", title: "Notes → CBT", desc: "Paste lecture notes or upload a PDF. Get instant MCQ practice questions tailored to your content." },
-  { icon: "🔍", title: "PQ Analyzer", desc: "Upload past questions and discover hot topics, repeated patterns, and what's likely to appear." },
-  { icon: "⚡", title: "PQ → CBT", desc: "Turn any past question paper into an interactive CBT session with answers and full explanations." },
-  { icon: "🤖", title: "AI Explanations", desc: "Stuck on a question? Ask the AI to explain step by step, in plain language." },
+  { icon: "📝", title: "Notes → CBT", desc: "Paste lecture notes or upload a PDF. Get instant MCQ practice questions from your own material." },
+  { icon: "🔍", title: "PQ Analyzer", desc: "Upload past questions. Discover hot topics, repeated patterns, and what's likely to appear." },
+  { icon: "⚡", title: "PQ → CBT", desc: "Turn any past question paper into an interactive CBT with answers and full explanations." },
+  { icon: "🤖", title: "AI Explanations", desc: "Stuck on a question? Ask the AI — get a step-by-step breakdown in plain language." },
+  { icon: "🧮", title: "Scientific Calculator", desc: "Built-in calculator for math and science questions. No switching tabs." },
+  { icon: "📊", title: "Track History", desc: "Premium users see all past CBT sessions, scores, and can review every question again." },
 ];
 
 const STEPS = [
   { n: "1", title: "Paste or upload", desc: "Your lecture notes, past questions, or any study material" },
-  { n: "2", title: "AI generates CBT", desc: "Instant multiple choice questions with A B C D options" },
-  { n: "3", title: "Practice and review", desc: "See your score, review mistakes, improve your weak areas" },
+  { n: "2", title: "AI generates CBT", desc: "Instant multiple-choice questions with A B C D options" },
+  { n: "3", title: "Practice & review", desc: "See your score, review mistakes, understand every answer" },
+];
+
+const SAMPLE_QS = [
+  {
+    q: "Which of the following best describes osmosis?",
+    opts: [
+      { l: "A", t: "Movement of water through a semi-permeable membrane from low to high solute concentration", correct: true },
+      { l: "B", t: "Movement of solutes from low to high concentration", correct: false },
+      { l: "C", t: "Active transport of ions across cell membranes", correct: false },
+      { l: "D", t: "Diffusion of gases through a permeable membrane", correct: false },
+    ],
+    exp: "Osmosis is the passive movement of water molecules through a semi-permeable membrane toward the region of higher solute concentration.",
+  },
+  {
+    q: "If log₂(x) = 5, what is the value of x?",
+    opts: [
+      { l: "A", t: "10", correct: false },
+      { l: "B", t: "25", correct: false },
+      { l: "C", t: "32", correct: true },
+      { l: "D", t: "64", correct: false },
+    ],
+    exp: "log₂(x) = 5 means 2⁵ = x. Therefore x = 32.",
+  },
+  {
+    q: "What is the capital of Nigeria?",
+    opts: [
+      { l: "A", t: "Lagos", correct: false },
+      { l: "B", t: "Abuja", correct: true },
+      { l: "C", t: "Kano", correct: false },
+      { l: "D", t: "Ibadan", correct: false },
+    ],
+    exp: "Abuja became Nigeria's capital in 1991, replacing Lagos. It is centrally located and purpose-built as a federal capital.",
+  },
 ];
 
 const EXAMS = ["JAMB", "WAEC", "NECO", "GCE", "POST-UTME", "University", "Lectures"];
 
+const BUBBLES = [
+  { x: 5, y: 15, size: 60, delay: 0, duration: 7 },
+  { x: 88, y: 10, size: 40, delay: 1, duration: 9 },
+  { x: 75, y: 60, size: 80, delay: 2, duration: 11 },
+  { x: 10, y: 70, size: 50, delay: 0.5, duration: 8 },
+  { x: 50, y: 85, size: 35, delay: 3, duration: 10 },
+  { x: 92, y: 40, size: 55, delay: 1.5, duration: 6 },
+  { x: 20, y: 45, size: 30, delay: 2.5, duration: 9 },
+];
+
 export default function LandingPage() {
   const router = useRouter();
   const [count, setCount] = useState(0);
+  const [activeQ, setActiveQ] = useState(0);
+  const [answered, setAnswered] = useState<number | null>(null);
 
   useEffect(() => {
     const target = 1240;
-    const step = Math.ceil(target / 60);
+    const step = Math.ceil(target / 50);
     const t = setInterval(() => {
       setCount(c => { if (c >= target) { clearInterval(t); return target; } return c + step; });
-    }, 20);
+    }, 24);
     return () => clearInterval(t);
   }, []);
 
+  // Auto-advance sample questions
+  useEffect(() => {
+    const t = setInterval(() => {
+      setAnswered(null);
+      setActiveQ(q => (q + 1) % SAMPLE_QS.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const q = SAMPLE_QS[activeQ];
+
   return (
     <div style={{ minHeight: "100vh", background: "#03080f", fontFamily: "var(--font-body)", color: "#e8f0fe", overflowX: "hidden" }}>
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
-        <div style={{ position: "absolute", top: "10%", left: "15%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.12) 0%, transparent 70%)", filter: "blur(40px)" }} />
-        <div style={{ position: "absolute", bottom: "20%", right: "10%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(8,145,178,0.1) 0%, transparent 70%)", filter: "blur(40px)" }} />
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) scale(1); opacity: 0.6; }
+          50% { transform: translateY(-20px) scale(1.05); opacity: 1; }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 20px rgba(37,99,235,0.3); }
+          50% { box-shadow: 0 0 40px rgba(37,99,235,0.6), 0 0 80px rgba(8,145,178,0.2); }
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+        .cta-btn {
+          animation: pulse-glow 3s ease-in-out infinite;
+          transition: transform 0.2s;
+        }
+        .cta-btn:hover { transform: scale(1.03); }
+        .feature-card { transition: transform 0.2s, border-color 0.2s; }
+        .feature-card:hover { transform: translateY(-4px); border-color: rgba(59,130,246,0.3) !important; }
+        .divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(59,130,246,0.2), rgba(8,145,178,0.2), transparent); margin: 0; }
+      `}</style>
+
+      {/* Background bubbles */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+        {BUBBLES.map((b, i) => <Bubble key={i} {...b} />)}
+        <div style={{ position: "absolute", top: "5%", left: "20%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(37,99,235,0.08) 0%, transparent 70%)", filter: "blur(60px)" }} />
+        <div style={{ position: "absolute", bottom: "15%", right: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(8,145,178,0.07) 0%, transparent 70%)", filter: "blur(60px)" }} />
       </div>
 
       <div style={{ position: "relative", zIndex: 1 }}>
-        {/* Nav */}
-        <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px", borderBottom: "1px solid rgba(56,139,253,0.08)", maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <StudiengineLogo size={32} />
-            <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)", background: "linear-gradient(135deg,#60a5fa,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => router.push("/")} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", padding: "8px 16px", borderRadius: 8, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
-            <button onClick={() => router.push("/")} style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "8px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Start Free →</button>
+        {/* Fixed Navbar */}
+        <nav style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+          background: "rgba(3,8,15,0.85)", backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(56,139,253,0.1)",
+        }}>
+          <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 20px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <StudiengineLogo size={28} />
+              <span style={{ fontSize: 16, fontWeight: 800, fontFamily: "var(--font-display)", background: "linear-gradient(135deg,#60a5fa,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button onClick={() => router.push("/")} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", padding: "7px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
+              <button onClick={() => router.push("/")} className="cta-btn" style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Start Free →</button>
+            </div>
           </div>
         </nav>
 
         {/* Hero */}
-        <section style={{ textAlign: "center", padding: "80px 24px 60px", maxWidth: 720, margin: "0 auto" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(37,99,235,0.12)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 20, padding: "5px 14px", marginBottom: 24, fontSize: 12, color: "#60a5fa" }}>
+        <section style={{ textAlign: "center", padding: "120px 20px 70px", maxWidth: 680, margin: "0 auto" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(37,99,235,0.12)", border: "1px solid rgba(59,130,246,0.2)", borderRadius: 20, padding: "4px 14px", marginBottom: 24, fontSize: 11, color: "#60a5fa" }}>
             🎓 Built for Nigerian students and beyond
           </div>
-          <h1 style={{ fontSize: "clamp(28px, 5vw, 52px)", fontWeight: 800, fontFamily: "var(--font-display)", lineHeight: 1.15, marginBottom: 20, background: "linear-gradient(135deg,#e8f0fe 0%,#60a5fa 50%,#22d3ee 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          <h1 style={{ fontSize: "clamp(26px, 5vw, 48px)", fontWeight: 800, fontFamily: "var(--font-display)", lineHeight: 1.2, marginBottom: 18, background: "linear-gradient(135deg,#e8f0fe 0%,#60a5fa 50%,#22d3ee 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             Turn your notes and past questions into CBT practice
           </h1>
-          <p style={{ fontSize: 16, color: "#7896b4", lineHeight: 1.7, marginBottom: 36, maxWidth: 500, margin: "0 auto 36px" }}>
+          <p style={{ fontSize: 15, color: "#7896b4", lineHeight: 1.7, marginBottom: 32, maxWidth: 480, margin: "0 auto 32px" }}>
             Paste your study material and get instant multiple-choice questions with answers and explanations. JAMB · WAEC · University · Lectures.
           </p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => router.push("/")} style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "14px 32px", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 30px rgba(37,99,235,0.35)" }}>
+          <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => router.push("/")} className="cta-btn" style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "13px 28px", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
               Start for Free →
             </button>
-            <button onClick={() => router.push("/")} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "#94a3b8", padding: "14px 28px", borderRadius: 12, fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={() => router.push("/")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", padding: "13px 24px", borderRadius: 12, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}>
               Try as Guest
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "#3d5a78", marginTop: 16 }}>Free forever · No credit card · 2 CBTs/day as guest</p>
-          <div style={{ marginTop: 48, padding: "16px 24px", background: "rgba(8,20,40,0.5)", border: "1px solid rgba(56,139,253,0.12)", borderRadius: 14, display: "inline-block" }}>
-            <p style={{ fontSize: 28, fontWeight: 800, color: "#60a5fa", margin: "0 0 4px", fontFamily: "var(--font-display)" }}>{count.toLocaleString()}+</p>
-            <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>students studying smarter</p>
+          <p style={{ fontSize: 11, color: "#3d5a78", marginTop: 14 }}>Free forever · No credit card needed</p>
+
+          {/* Count */}
+          <div style={{ marginTop: 44, padding: "14px 28px", background: "rgba(8,20,40,0.6)", border: "1px solid rgba(56,139,253,0.15)", borderRadius: 14, display: "inline-block" }}>
+            <p style={{ fontSize: 26, fontWeight: 800, color: "#60a5fa", margin: "0 0 2px", fontFamily: "var(--font-display)" }}>{count.toLocaleString()}+</p>
+            <p style={{ fontSize: 11, color: "#475569", margin: 0 }}>students studying smarter</p>
           </div>
         </section>
 
-        {/* Sample question */}
-        <section style={{ maxWidth: 480, margin: "0 auto 80px", padding: "0 24px" }}>
-          <div style={{ background: "rgba(8,20,40,0.7)", border: "1px solid rgba(56,139,253,0.15)", borderRadius: 16, padding: "20px 18px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 11, color: "#475569" }}>1 / 10</span>
-              <span style={{ fontSize: 11, color: "#4ade80", fontWeight: 600 }}>⚡ 3 correct</span>
-            </div>
-            <p style={{ fontSize: 14, color: "#e8f0fe", marginBottom: 16, lineHeight: 1.6 }}>Which of the following best describes osmosis?</p>
-            {[
-              { l: "A", t: "Movement of water from high to low solute concentration through a semi-permeable membrane", correct: true },
-              { l: "B", t: "Movement of solutes from low to high concentration", correct: false },
-              { l: "C", t: "Active transport of ions across cell membranes", correct: false },
-              { l: "D", t: "Diffusion of gases through a permeable membrane", correct: false },
-            ].map((o, i) => (
-              <div key={i} style={{ padding: "10px 12px", borderRadius: 10, marginBottom: 8, fontSize: 13, border: "1px solid", display: "flex", gap: 10, alignItems: "flex-start", borderColor: o.correct ? "rgba(22,163,74,0.4)" : "rgba(56,139,253,0.1)", background: o.correct ? "rgba(22,163,74,0.08)" : "rgba(255,255,255,0.02)", color: o.correct ? "#4ade80" : "#7896b4" }}>
-                <span style={{ width: 20, height: 20, borderRadius: 5, background: o.correct ? "rgba(22,163,74,0.25)" : "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                  {o.correct ? "✓" : o.l}
-                </span>
-                {o.t}
+        <div className="divider" />
+
+        {/* Interactive sample question */}
+        <section style={{ maxWidth: 520, margin: "0 auto", padding: "64px 20px" }}>
+          <FadeIn>
+            <p style={{ textAlign: "center", fontSize: 11, color: "#475569", marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.08em" }}>See what it generates</p>
+            <div style={{ background: "rgba(8,20,40,0.7)", border: "1px solid rgba(56,139,253,0.15)", borderRadius: 16, padding: "20px 18px", backdropFilter: "blur(12px)" }}>
+              {/* Progress dots */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {SAMPLE_QS.map((_, i) => (
+                    <div key={i} onClick={() => { setActiveQ(i); setAnswered(null); }} style={{ width: i === activeQ ? 20 : 6, height: 6, borderRadius: 3, background: i === activeQ ? "#60a5fa" : "rgba(255,255,255,0.1)", cursor: "pointer", transition: "all 0.3s" }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 10, color: "#334155" }}>Click an option</span>
               </div>
-            ))}
-            <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(37,99,235,0.08)", borderRadius: 10, fontSize: 12, color: "#60a5fa" }}>
-              <strong>Explanation:</strong> Osmosis is the movement of water molecules through a selectively permeable membrane from lower to higher solute concentration.
+
+              <p style={{ fontSize: 14, color: "#e8f0fe", marginBottom: 14, lineHeight: 1.6, minHeight: 48 }}>{q.q}</p>
+
+              {q.opts.map((o, i) => (
+                <div key={i} onClick={() => setAnswered(i)} style={{
+                  padding: "9px 12px", borderRadius: 10, marginBottom: 7, fontSize: 12, border: "1px solid",
+                  display: "flex", gap: 8, alignItems: "flex-start", cursor: "pointer",
+                  transition: "all 0.2s",
+                  borderColor: answered === null ? "rgba(56,139,253,0.12)" : o.correct ? "rgba(22,163,74,0.5)" : answered === i ? "rgba(239,68,68,0.4)" : "rgba(56,139,253,0.08)",
+                  background: answered === null ? "rgba(255,255,255,0.02)" : o.correct ? "rgba(22,163,74,0.1)" : answered === i ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.01)",
+                  color: answered === null ? "#7896b4" : o.correct ? "#4ade80" : answered === i ? "#f87171" : "#475569",
+                }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 4, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700,
+                    background: answered !== null && o.correct ? "rgba(22,163,74,0.3)" : answered === i && !o.correct ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.05)",
+                    color: answered !== null && o.correct ? "#4ade80" : answered === i ? "#f87171" : "#475569",
+                  }}>
+                    {answered !== null && o.correct ? "✓" : answered === i && !o.correct ? "✗" : o.l}
+                  </span>
+                  {o.t}
+                </div>
+              ))}
+
+              {answered !== null && (
+                <div style={{ marginTop: 10, padding: "10px 12px", background: "rgba(37,99,235,0.08)", border: "1px solid rgba(59,130,246,0.15)", borderRadius: 10, fontSize: 12, color: "#60a5fa", animation: "fadeIn 0.3s ease" }}>
+                  <strong>Explanation: </strong>{q.exp}
+                </div>
+              )}
             </div>
-          </div>
-          <p style={{ textAlign: "center", fontSize: 11, color: "#334155", marginTop: 10 }}>← This is what every generated question looks like</p>
+          </FadeIn>
         </section>
+
+        <div className="divider" />
 
         {/* How it works */}
-        <section style={{ maxWidth: 900, margin: "0 auto 80px", padding: "0 24px" }}>
-          <h2 style={{ textAlign: "center", fontSize: 26, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 8, color: "#e8f0fe" }}>How it works</h2>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#475569", marginBottom: 36 }}>Three steps to smarter studying</p>
+        <section style={{ maxWidth: 860, margin: "0 auto", padding: "64px 20px" }}>
+          <FadeIn>
+            <h2 style={{ textAlign: "center", fontSize: 24, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 6, color: "#e8f0fe" }}>How it works</h2>
+            <p style={{ textAlign: "center", fontSize: 13, color: "#475569", marginBottom: 40 }}>Three steps to smarter studying</p>
+          </FadeIn>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
             {STEPS.map((s, i) => (
-              <div key={i} style={{ background: "rgba(8,20,40,0.5)", border: "1px solid rgba(56,139,253,0.12)", borderRadius: 16, padding: "24px 20px", textAlign: "center" }}>
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: "linear-gradient(135deg,rgba(37,99,235,0.3),rgba(8,145,178,0.2))", border: "1px solid rgba(59,130,246,0.25)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 18, fontWeight: 800, color: "#60a5fa", fontFamily: "var(--font-display)" }}>
-                  {s.n}
+              <FadeIn key={i} delay={i * 0.1}>
+                <div style={{ background: "rgba(8,20,40,0.5)", border: "1px solid rgba(56,139,253,0.1)", borderRadius: 16, padding: "24px 20px", textAlign: "center", height: "100%" }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,rgba(37,99,235,0.25),rgba(8,145,178,0.15))", border: "1px solid rgba(59,130,246,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px", fontSize: 17, fontWeight: 800, color: "#60a5fa", fontFamily: "var(--font-display)" }}>
+                    {s.n}
+                  </div>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: "#e8f0fe", marginBottom: 6, fontFamily: "var(--font-display)" }}>{s.title}</p>
+                  <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.65 }}>{s.desc}</p>
                 </div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: "#e8f0fe", marginBottom: 8, fontFamily: "var(--font-display)" }}>{s.title}</p>
-                <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.6 }}>{s.desc}</p>
-              </div>
+              </FadeIn>
             ))}
           </div>
         </section>
+
+        <div className="divider" />
 
         {/* Features */}
-        <section style={{ maxWidth: 900, margin: "0 auto 80px", padding: "0 24px" }}>
-          <h2 style={{ textAlign: "center", fontSize: 26, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 8, color: "#e8f0fe" }}>Everything you need to pass</h2>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#475569", marginBottom: 36 }}>Built for how Nigerian students actually study</p>
+        <section style={{ maxWidth: 860, margin: "0 auto", padding: "64px 20px" }}>
+          <FadeIn>
+            <h2 style={{ textAlign: "center", fontSize: 24, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 6, color: "#e8f0fe" }}>Everything you need to pass</h2>
+            <p style={{ textAlign: "center", fontSize: 13, color: "#475569", marginBottom: 40 }}>Built for how Nigerian students actually study</p>
+          </FadeIn>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
             {FEATURES.map((f, i) => (
-              <div key={i} style={{ background: "rgba(8,20,40,0.5)", border: "1px solid rgba(56,139,253,0.1)", borderRadius: 16, padding: "20px 18px" }}>
-                <span style={{ fontSize: 26, display: "block", marginBottom: 12 }}>{f.icon}</span>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fe", marginBottom: 6, fontFamily: "var(--font-display)" }}>{f.title}</p>
-                <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.6 }}>{f.desc}</p>
-              </div>
+              <FadeIn key={i} delay={i * 0.08}>
+                <div className="feature-card" style={{ background: "rgba(8,20,40,0.5)", border: "1px solid rgba(56,139,253,0.1)", borderRadius: 16, padding: "20px 18px", height: "100%" }}>
+                  <span style={{ fontSize: 24, display: "block", marginBottom: 12 }}>{f.icon}</span>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fe", marginBottom: 6, fontFamily: "var(--font-display)" }}>{f.title}</p>
+                  <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.6 }}>{f.desc}</p>
+                </div>
+              </FadeIn>
             ))}
           </div>
         </section>
 
-        {/* Exam tags */}
-        <section style={{ textAlign: "center", maxWidth: 600, margin: "0 auto 80px", padding: "0 24px" }}>
-          <p style={{ fontSize: 12, color: "#334155", marginBottom: 14 }}>Works for all Nigerian exams and beyond</p>
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-            {EXAMS.map(e => (
-              <span key={e} style={{ fontSize: 12, padding: "5px 14px", borderRadius: 20, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#475569" }}>{e}</span>
-            ))}
-          </div>
+        <div className="divider" />
+
+        {/* Exams */}
+        <section style={{ textAlign: "center", maxWidth: 600, margin: "0 auto", padding: "56px 20px" }}>
+          <FadeIn>
+            <p style={{ fontSize: 12, color: "#334155", marginBottom: 14 }}>Works for all Nigerian exams and beyond</p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+              {EXAMS.map(e => (
+                <span key={e} style={{ fontSize: 12, padding: "5px 14px", borderRadius: 20, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", color: "#475569" }}>{e}</span>
+              ))}
+            </div>
+          </FadeIn>
         </section>
 
-        {/* CTA */}
-        <section style={{ textAlign: "center", padding: "60px 24px 80px", borderTop: "1px solid rgba(56,139,253,0.08)" }}>
-          <h2 style={{ fontSize: 30, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 12, background: "linear-gradient(135deg,#60a5fa,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            Ready to study smarter?
-          </h2>
-          <p style={{ fontSize: 14, color: "#475569", marginBottom: 28 }}>Free to start. No credit card. Works on any device.</p>
-          <button onClick={() => router.push("/")} style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "16px 40px", borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 0 30px rgba(37,99,235,0.35)" }}>
-            Start for Free →
-          </button>
+        <div className="divider" />
+
+        {/* Final CTA */}
+        <section style={{ textAlign: "center", padding: "64px 20px 80px" }}>
+          <FadeIn>
+            <h2 style={{ fontSize: 28, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 10, background: "linear-gradient(135deg,#60a5fa,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Ready to study smarter?
+            </h2>
+            <p style={{ fontSize: 13, color: "#475569", marginBottom: 28 }}>Free to start. No credit card. Works on any device.</p>
+            <button onClick={() => router.push("/")} className="cta-btn" style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "14px 36px", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              Start for Free →
+            </button>
+          </FadeIn>
         </section>
 
-        <footer style={{ borderTop: "1px solid rgba(56,139,253,0.08)", padding: "20px 24px", textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#1e293b" }}>© 2025 Studiengine · Built for Nigerian students</p>
+        <footer style={{ borderTop: "1px solid rgba(56,139,253,0.06)", padding: "18px 24px", textAlign: "center" }}>
+          <p style={{ fontSize: 11, color: "#1e293b" }}>© 2025 Studiengine · Built for Nigerian students</p>
         </footer>
       </div>
+
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }`}</style>
     </div>
   );
 }
