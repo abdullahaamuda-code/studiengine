@@ -144,18 +144,86 @@ export default function LandingPage() {
 
       <div style={{ position: "relative", zIndex: 1 }}>
         {/* Fixed Navbar */}
-        <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(3,8,15,0.85)", backdropFilter: "blur(20px)", boxShadow: "0 10px 25px rgba(15,23,42,0.9)" }}>
-          <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 16px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <StudiengineLogo size={28} />
-              <span style={{ fontSize: 16, fontWeight: 800, fontFamily: "var(--font-display)", background: "linear-gradient(135deg,#60a5fa,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button onClick={() => router.push("/app")} style={{ background: "none", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", padding: "7px 14px", borderRadius: 8, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Sign In</button>
-              <button onClick={() => router.push("/app")} className="cta-btn" style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Start Free →</button>
-            </div>
-          </div>
-        </nav>
+<nav
+  style={{
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    background: "rgba(3,8,15,0.85)",
+    backdropFilter: "blur(20px)",
+    boxShadow: "0 10px 25px rgba(15,23,42,0.9)",
+  }}
+>
+  <div
+    style={{
+      maxWidth: 960,
+      margin: "0 auto",
+      padding: "0 16px",
+      height: 56,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+    }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <StudiengineLogo size={28} />
+      <span
+        style={{
+          fontSize: 16,
+          fontWeight: 800,
+          fontFamily: "var(--font-display)",
+          background: "linear-gradient(135deg,#60a5fa,#22d3ee)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+        }}
+      >
+        Studiengine
+      </span>
+    </div>
+
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      {/* Sign in goes to /app with mode=signin so Navbar/AuthModal open in sign-in mode */}
+      <button
+        onClick={() => router.push("/app?mode=signin")}
+        style={{
+          background: "none",
+          border: "1px solid rgba(255,255,255,0.1)",
+          color: "#94a3b8",
+          padding: "7px 14px",
+          borderRadius: 8,
+          fontSize: 12,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        Sign In
+      </button>
+
+      {/* Start Free defaults to signup */}
+      <button
+        onClick={() => router.push("/app?mode=signup")}
+        className="cta-btn"
+        style={{
+          background: "linear-gradient(135deg,#2563eb,#0891b2)",
+          border: "none",
+          color: "#fff",
+          padding: "7px 16px",
+          borderRadius: 8,
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: "pointer",
+          fontFamily: "inherit",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Start Free →
+      </button>
+    </div>
+  </div>
+</nav>
+
 
         {/* Hero — split layout */}
         <section style={{ padding: "96px 20px 70px", maxWidth: 960, margin: "0 auto" }}>
@@ -172,12 +240,21 @@ export default function LandingPage() {
                 Paste your study material and get instant multiple-choice questions with answers and explanations — plus trends from your past questions so you know what to focus on.
               </p>
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-                <button onClick={() => router.push("/app")} className="cta-btn" style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "12px 26px", borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-                  Start for Free →
-                </button>
-                <button onClick={() => router.push("/app?guest=1")} style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", padding: "12px 22px", borderRadius: 12, fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-                  Continue as guest
-                </button>
+<button
+  onClick={() => router.push("/")}
+  className="cta-btn"
+  style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "13px 28px", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+>
+  Start for Free →
+</button>
+
+<button
+  onClick={() => router.push("/?guest=1")}
+  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", padding: "13px 24px", borderRadius: 12, fontSize: 14, cursor: "pointer", fontFamily: "inherit" }}
+>
+  Continue as guest
+</button>
+
               </div>
               <p style={{ fontSize: 11, color: "#3d5a78" }}>Free forever · No credit card needed</p>
               <div style={{ marginTop: 28, padding: "12px 20px", background: "rgba(8,20,40,0.6)", border: "1px solid rgba(56,139,253,0.15)", borderRadius: 14, display: "inline-block" }}>
@@ -321,9 +398,14 @@ export default function LandingPage() {
           <FadeIn>
             <h2 style={{ fontSize: 26, fontWeight: 800, fontFamily: "var(--font-display)", marginBottom: 10, background: "linear-gradient(135deg,#60a5fa,#22d3ee)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Ready to study smarter?</h2>
             <p style={{ fontSize: 13, color: "#475569", marginBottom: 28 }}>Free to start. No credit card. Works on any device.</p>
-            <button onClick={() => router.push("/app")} className="cta-btn" style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "14px 36px", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              Start for Free →
-            </button>
+<button
+  onClick={() => router.push("/?mode=signup")}
+  className="cta-btn"
+  style={{ background: "linear-gradient(135deg,#2563eb,#0891b2)", border: "none", color: "#fff", padding: "14px 36px", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+>
+  Start for Free →
+</button>
+
           </FadeIn>
         </section>
 
