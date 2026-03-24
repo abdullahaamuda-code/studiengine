@@ -1,26 +1,49 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function Root() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Returning user check — if they've been here before, skip landing
-    const returning = localStorage.getItem("studiengine_onboarded_v2") ||
-                      localStorage.getItem("studiengine_guest_id") ||
-                      localStorage.getItem("studiengine_theme");
-    if (returning) {
-      router.replace("/app");
-    } else {
-      router.replace("/landing");
-    }
-  }, []);
+    const params = searchParams.toString();
 
-  // Show nothing while redirecting
+    const returning =
+      typeof window !== "undefined" &&
+      (localStorage.getItem("studiengine_onboarded_v2") ||
+        localStorage.getItem("studiengine_guest_id") ||
+        localStorage.getItem("studiengine_theme"));
+
+    if (returning) {
+      // keep queries, e.g. /?mode=signup -> /app?mode=signup
+      router.replace(params ? `/app?${params}` : "/app");
+    } else {
+      // first time: /landing or /landing?mode=signup /landing?guest=1
+      router.replace(params ? `/landing?${params}` : "/landing");
+    }
+  }, [router, searchParams]);
+
   return (
-    <div style={{ minHeight: "100vh", background: "#03080f", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 20, height: 20, border: "2px solid rgba(255,255,255,0.1)", borderTopColor: "#60a5fa", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#03080f",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 20,
+          height: 20,
+          border: "2px solid rgba(255,255,255,0.1)",
+          borderTopColor: "#60a5fa",
+          borderRadius: "50%",
+          animation: "spin 0.7s linear infinite",
+        }}
+      />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
