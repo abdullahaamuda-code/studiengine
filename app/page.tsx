@@ -1,30 +1,32 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default function Root() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const params = searchParams.toString();
+    // Only run in browser
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    const params = url.searchParams.toString();
 
     const returning =
-      typeof window !== "undefined" &&
-      (localStorage.getItem("studiengine_onboarded_v2") ||
-        localStorage.getItem("studiengine_guest_id") ||
-        localStorage.getItem("studiengine_theme"));
+      localStorage.getItem("studiengine_onboarded_v2") ||
+      localStorage.getItem("studiengine_guest_id") ||
+      localStorage.getItem("studiengine_theme");
 
     if (returning) {
-      // e.g. /?mode=signup -> /app?mode=signup
+      // /?mode=signup -> /app?mode=signup
       router.replace(params ? `/app?${params}` : "/app");
     } else {
-      // e.g. /?mode=signup -> /landing?mode=signup
+      // /?mode=signup -> /landing?mode=signup
       router.replace(params ? `/landing?${params}` : "/landing");
     }
-  }, [router, searchParams]);
+  }, [router]);
 
   return (
     <div
