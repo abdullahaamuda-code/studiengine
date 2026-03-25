@@ -18,100 +18,98 @@ function isInStandaloneMode() {
   );
 }
 
-// Same logo component as in AuthModal
 function StudiengineLogo() {
   return (
-    <div style={{ textAlign: "center", marginBottom: 20 }}>
-      <div
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      <svg
+        width="26"
+        height="26"
+        viewBox="0 0 80 80"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ borderRadius: 8, display: "block" }}
+      >
+        <defs>
+          <linearGradient id="amb" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0a1628" />
+            <stop offset="100%" stopColor="#0c1a2e" />
+          </linearGradient>
+          <linearGradient id="ams" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#22d3ee" />
+          </linearGradient>
+        </defs>
+        <rect width="80" height="80" rx="16" fill="url(#amb)" />
+        <rect
+          x="30"
+          y="12"
+          width="34"
+          height="8"
+          rx="4"
+          fill="#1e3a5f"
+          opacity="0.8"
+        />
+        <rect
+          x="14"
+          y="24"
+          width="50"
+          height="8"
+          rx="4"
+          fill="#1e3a5f"
+          opacity="0.7"
+        />
+        <rect
+          x="14"
+          y="36"
+          width="52"
+          height="8"
+          rx="4"
+          fill="#1e3a5f"
+          opacity="0.6"
+        />
+        <rect
+          x="14"
+          y="48"
+          width="50"
+          height="8"
+          rx="4"
+          fill="#1e3a5f"
+          opacity="0.5"
+        />
+        <rect
+          x="14"
+          y="60"
+          width="34"
+          height="8"
+          rx="4"
+          fill="#1e3a5f"
+          opacity="0.4"
+        />
+        <path
+          d="M52 20 C52 20 52 13 40 13 C28 13 24 20 24 27 C24 34 30 37 40 40 C50 43 56 46 56 53 C56 60 52 67 40 67 C28 67 24 60 24 60"
+          fill="none"
+          stroke="url(#ams)"
+          strokeWidth="6.5"
+          strokeLinecap="round"
+        />
+      </svg>
+      <span
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 4,
+          fontSize: 14,
+          fontWeight: 700,
+          fontFamily: "var(--font-display)",
+          background: "linear-gradient(135deg,#60a5fa,#22d3ee)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
         }}
       >
-        <svg
-          width="30"
-          height="30"
-          viewBox="0 0 80 80"
-          xmlns="http://www.w3.org/2000/svg"
-          style={{ borderRadius: 8, display: "block" }}
-        >
-          <defs>
-            <linearGradient id="amb" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0a1628" />
-              <stop offset="100%" stopColor="#0c1a2e" />
-            </linearGradient>
-            <linearGradient id="ams" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#22d3ee" />
-            </linearGradient>
-          </defs>
-          <rect width="80" height="80" rx="16" fill="url(#amb)" />
-          <rect
-            x="30"
-            y="12"
-            width="34"
-            height="8"
-            rx="4"
-            fill="#1e3a5f"
-            opacity="0.8"
-          />
-          <rect
-            x="14"
-            y="24"
-            width="50"
-            height="8"
-            rx="4"
-            fill="#1e3a5f"
-            opacity="0.7"
-          />
-          <rect
-            x="14"
-            y="36"
-            width="52"
-            height="8"
-            rx="4"
-            fill="#1e3a5f"
-            opacity="0.6"
-          />
-          <rect
-            x="14"
-            y="48"
-            width="50"
-            height="8"
-            rx="4"
-            fill="#1e3a5f"
-            opacity="0.5"
-          />
-          <rect
-            x="14"
-            y="60"
-            width="34"
-            height="8"
-            rx="4"
-            fill="#1e3a5f"
-            opacity="0.4"
-          />
-          <path
-            d="M52 20 C52 20 52 13 40 13 C28 13 24 20 24 27 C24 34 30 37 40 40 C50 43 56 46 56 53 C56 60 52 67 40 67 C28 67 24 60 24 60"
-            fill="none"
-            stroke="url(#ams)"
-            strokeWidth="6.5"
-            strokeLinecap="round"
-          />
-        </svg>
-        <span
-          style={{
-            fontSize: 18,
-            fontWeight: 800,
-            fontFamily: "var(--font-display)",
-          }}
-          className="gradient-text"
-        >
-          Studiengine
-        </span>
-      </div>
+        Studiengine
+      </span>
     </div>
   );
 }
@@ -130,14 +128,12 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
   useEffect(() => {
     setIos(isIOS());
 
-    // Check if already installed
     if (localStorage.getItem(STORAGE_INSTALLED)) return;
     if (isInStandaloneMode()) {
       localStorage.setItem(STORAGE_INSTALLED, "1");
       return;
     }
 
-    // Check dismiss cooldown
     const dismissedAt = localStorage.getItem(STORAGE_DISMISSED_AT);
     if (dismissedAt) {
       const daysSince =
@@ -145,14 +141,12 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
       if (daysSince < DISMISS_COOLDOWN_DAYS) return;
     }
 
-    // Listen for Chrome install prompt
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Listen for successful install
     window.addEventListener("appinstalled", () => {
       localStorage.setItem(STORAGE_INSTALLED, "1");
       setVisible(false);
@@ -184,8 +178,9 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
       setInstalling(true);
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted")
+      if (outcome === "accepted") {
         localStorage.setItem(STORAGE_INSTALLED, "1");
+      }
       setDeferredPrompt(null);
       setInstalling(false);
       setVisible(false);
@@ -210,53 +205,65 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
         className="glass animate-in"
         style={{
           borderRadius: 18,
-          padding: "18px 18px 16px",
-          border: "1px solid rgba(59,130,246,0.3)",
+          padding: "14px 14px 12px",
+          border: "1px solid var(--border-glass)",
+          background:
+            "radial-gradient(circle at 0 0, rgba(37,99,235,0.25), transparent 60%) rgba(15,23,42,0.92)",
           boxShadow:
-            "0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(37,99,235,0.15)",
+            "0 18px 45px rgba(15,23,42,0.9), 0 0 40px rgba(37,99,235,0.18)",
         }}
       >
-        {/* Header using same logo as AuthModal */}
+        {/* Header row */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 12,
-            marginBottom: 12,
+            gap: 10,
+            marginBottom: 10,
           }}
         >
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <StudiengineLogo />
-            <div>
-              <p
+          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                padding: 6,
+                borderRadius: 999,
+                background:
+                  "linear-gradient(135deg,rgba(37,99,235,0.18),rgba(8,145,178,0.08))",
+                border: "1px solid rgba(56,139,253,0.35)",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <StudiengineLogo />
+              <span
                 style={{
-                  fontSize: 12,
-                  color: "var(--text-muted)",
-                  margin: 0,
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  whiteSpace: "nowrap",
                 }}
               >
-                Study faster — quick access, works like a native app
-              </p>
+                Install the app for 1‑tap access
+              </span>
             </div>
           </div>
           <button
             onClick={handleDismiss}
+            aria-label="Close"
             style={{
-              background: "none",
-              border: "none",
-              color: "var(--text-muted)",
+              width: 26,
+              height: 26,
+              borderRadius: 999,
+              border: "1px solid rgba(148,163,184,0.3)",
+              background: "rgba(15,23,42,0.9)",
+              color: "#9ca3af",
               cursor: "pointer",
-              fontSize: 18,
-              padding: 4,
+              fontSize: 14,
               lineHeight: 1,
-              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
             }}
           >
             ×
@@ -264,14 +271,14 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
         </div>
 
         {ios ? (
-          // iOS instructions
           <div>
             <div
               style={{
-                background: "rgba(255,255,255,0.04)",
-                borderRadius: 12,
+                background: "rgba(15,23,42,0.9)",
+                borderRadius: 14,
                 padding: "12px 14px",
-                marginBottom: 12,
+                marginBottom: 10,
+                border: "1px solid rgba(148,163,184,0.25)",
               }}
             >
               <p
@@ -299,14 +306,12 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
                   key={i}
                   style={{
                     display: "flex",
-                    gap: 10,
+                    gap: 8,
                     alignItems: "flex-start",
-                    padding: "4px 0",
+                    padding: "3px 0",
                   }}
                 >
-                  <span style={{ fontSize: 14, flexShrink: 0 }}>
-                    {step.icon}
-                  </span>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>{step.icon}</span>
                   <span
                     style={{
                       fontSize: 12,
@@ -324,7 +329,7 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
               className="btn-ghost"
               style={{
                 width: "100%",
-                padding: "10px 0",
+                padding: "9px 0",
                 borderRadius: 10,
                 fontSize: 13,
               }}
@@ -333,7 +338,6 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
             </button>
           </div>
         ) : deferredPrompt ? (
-          // Chrome/Android — native install
           <div style={{ display: "flex", gap: 8 }}>
             <button
               className="btn-primary"
@@ -341,9 +345,9 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
               disabled={installing}
               style={{
                 flex: 1,
-                padding: "11px 0",
+                padding: "10px 0",
                 borderRadius: 10,
-                fontSize: 14,
+                fontSize: 13,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -355,30 +359,30 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
                   <div className="spinner" /> Installing...
                 </>
               ) : (
-                "📲 Install App"
+                "📲 Install Studiengine"
               )}
             </button>
             <button
               onClick={handleDismiss}
               className="btn-ghost"
               style={{
-                padding: "11px 16px",
+                padding: "10px 16px",
                 borderRadius: 10,
                 fontSize: 13,
               }}
             >
-              Cancel
+              Not now
             </button>
           </div>
         ) : (
-          // Browser didn't fire beforeinstallprompt — manual instructions
           <div>
             <div
               style={{
-                background: "rgba(255,255,255,0.04)",
-                borderRadius: 12,
+                background: "rgba(15,23,42,0.9)",
+                borderRadius: 14,
                 padding: "12px 14px",
-                marginBottom: 12,
+                marginBottom: 10,
+                border: "1px solid rgba(148,163,184,0.25)",
               }}
             >
               <p
@@ -406,14 +410,14 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
                   key={i}
                   style={{
                     display: "flex",
-                    gap: 10,
+                    gap: 8,
                     alignItems: "flex-start",
-                    padding: "4px 0",
+                    padding: "3px 0",
                   }}
                 >
                   <span
                     style={{
-                      fontSize: 14,
+                      fontSize: 13,
                       flexShrink: 0,
                       fontWeight: 700,
                       color: "#60a5fa",
@@ -438,7 +442,7 @@ export default function InstallPrompt({ show, onDismiss }: Props) {
               className="btn-ghost"
               style={{
                 width: "100%",
-                padding: "10px 0",
+                padding: "9px 0",
                 borderRadius: 10,
                 fontSize: 13,
               }}
