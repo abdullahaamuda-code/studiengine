@@ -90,14 +90,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setIsGuest(false);
   }
-
   async function logout() {
     await signOut(auth);
+    setUser(null);
     setIsGuest(false);
     setIsPremium(false);
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("studiengine_onboarded_v2");
+      localStorage.removeItem("studiengine_guest_id");
+      // keep theme key so their theme stays
+    }
   }
 
-  function continueAsGuest() { setIsGuest(true); }
+  function continueAsGuest() {
+    setUser(null);
+    setIsGuest(true);
+    if (typeof window !== "undefined") {
+      // mark as returning + store guest id if not already
+      localStorage.setItem("studiengine_onboarded_v2", "1");
+      if (!localStorage.getItem("studiengine_guest_id") && guestId) {
+        localStorage.setItem("studiengine_guest_id", guestId);
+      }
+    }
+  }
 
   return (
     <AuthContext.Provider value={{ user, isGuest, isPremium, userId, loading, signIn, signUp, logout, continueAsGuest }}>
