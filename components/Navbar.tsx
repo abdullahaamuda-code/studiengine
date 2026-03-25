@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import AuthModal from "./AuthModal";
 import UpgradeModal from "./UpgradeModal";
@@ -86,6 +87,7 @@ export default function Navbar({
 }: {
   defaultAuthMode?: "signin" | "signup";
 }) {
+  const router = useRouter();
   const { user, isGuest, isPremium, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup" | undefined>(
@@ -118,6 +120,11 @@ export default function Navbar({
   function openAuth(mode: "signin" | "signup") {
     setAuthMode(mode);
     setShowAuth(true);
+  }
+
+  async function handleLogout() {
+    await logout();
+    router.replace("/landing");
   }
 
   return (
@@ -437,7 +444,7 @@ export default function Navbar({
                       className="menu-item"
                       onClick={() => {
                         setMenuOpen(false);
-                        logout();
+                        handleLogout();
                       }}
                       style={{
                         width: "100%",
