@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -111,11 +111,8 @@ export default function AuthModal({
   onClose,
   initialMode = "signup",
 }: Props) {
-  // FIX: lock the initial mode so parent prop changes don’t reset component
-  const initialRef = useRef<"signin" | "signup">(initialMode);
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
-    initialRef.current
-  );
+  // just use initialMode once, no ref, no prop-driven updates
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
