@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -107,8 +107,16 @@ function Logo() {
   );
 }
 
-export default function AuthModal({ onClose, initialMode = "signup" }: Props) {
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
+export default function AuthModal({
+  onClose,
+  initialMode = "signup",
+}: Props) {
+  // IMPORTANT FIX: lock initial mode so parent re-renders don’t reset it
+  const initialRef = useRef<"signin" | "signup">(initialMode);
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
+    initialRef.current
+  );
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
