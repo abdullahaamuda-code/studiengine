@@ -113,10 +113,10 @@ export default function AuthModal({
   onClose,
   initialMode = "signup",
 }: Props) {
-  console.log("AuthModal render");
-
-  // internal mode, only set from initialMode once when modal first opens
-  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
+  // Safe initial mode derived from initialMode
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
+    initialMode === "signin" ? "signin" : "signup"
+  );
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -125,10 +125,10 @@ export default function AuthModal({
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, continueAsGuest } = useAuth();
 
-  // whenever we transition from closed → open, reset mode from initialMode
+  // When modal opens, reset mode + some state based on initialMode
   useEffect(() => {
     if (open) {
-      setMode(initialMode);
+      setMode(initialMode === "signin" ? "signin" : "signup");
       setError("");
       setInfo("");
       setPassword("");
@@ -216,7 +216,6 @@ export default function AuthModal({
   }) => {
     return (
       <input
-        // IMPORTANT: do NOT add any key prop here
         type={type}
         placeholder={placeholder}
         value={value}
@@ -238,7 +237,7 @@ export default function AuthModal({
     );
   };
 
-  // If not open, keep mounted but invisible to avoid remounting
+  // Keep mounted, hide when not open
   const visibilityStyle = open
     ? {}
     : { pointerEvents: "none" as const, opacity: 0, transform: "scale(0.98)" };
@@ -386,13 +385,7 @@ export default function AuthModal({
                 gap: 8,
               }}
             >
-              {loading ? (
-                <>
-                  <div className="spinner" /> Creating account...
-                </>
-              ) : (
-                "Create Account →"
-              )}
+              {loading ? "Creating account..." : "Create Account →"}
             </button>
             <div
               style={{
@@ -462,6 +455,7 @@ export default function AuthModal({
                 onClick={() => {
                   setMode("signin");
                   setError("");
+                  setInfo("");
                 }}
                 style={{
                   background: "none",
@@ -550,13 +544,7 @@ export default function AuthModal({
                 gap: 8,
               }}
             >
-              {loading ? (
-                <>
-                  <div className="spinner" /> Signing in...
-                </>
-              ) : (
-                "Sign In →"
-              )}
+              {loading ? "Signing in..." : "Sign In →"}
             </button>
             <div
               style={{
@@ -699,19 +687,7 @@ export default function AuthModal({
             </button>
           </div>
         )}
-    <input
-  placeholder="TEST INPUT"
-  style={{
-    width: "100%",
-    marginTop: 16,
-    padding: 8,
-    borderRadius: 8,
-    border: "1px solid red",
-  }}
-/>
       </div>
     </div>
-    
   );
-  
 }
