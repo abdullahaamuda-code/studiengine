@@ -405,12 +405,11 @@ function HomeInner() {
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
 
       {/* Auth modal uses stable initialMode */}
-      {showAuth && (
-        <AuthModal
-          onClose={() => setShowAuth(false)}
-          initialMode={initialMode || "signup"}
-        />
-      )}
+      <AuthModal
+        open={showAuth}
+        onClose={() => setShowAuth(false)}
+        initialMode={initialMode || "signup"}
+      />
 
       <OnboardingModal />
       <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
