@@ -703,7 +703,19 @@ export default function AuthModal({
             </button>
           </div>
         )}
+    <input
+  placeholder="TEST INPUT"
+  style={{
+    width: "100%",
+    marginTop: 16,
+    padding: 8,
+    borderRadius: 8,
+    border: "1px solid red",
+  }}
+/>
       </div>
     </div>
+    
   );
+  
 }
