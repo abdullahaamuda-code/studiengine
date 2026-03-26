@@ -113,6 +113,8 @@ export default function AuthModal({
   onClose,
   initialMode = "signup",
 }: Props) {
+  console.log("AuthModal render");
+
   // internal mode, only set from initialMode once when modal first opens
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
 
@@ -211,31 +213,34 @@ export default function AuthModal({
     placeholder: string;
     value: string;
     onChange: (v: string) => void;
-  }) => (
-    <input
-      type={type}
-      placeholder={placeholder}
-      value={value}
-      onChange={(e: any) => onChange(e.target.value)}
-      onKeyDown={(e: any) =>
-        e.key === "Enter" &&
-        (mode === "forgot" ? handleForgot() : handleSubmit())
-      }
-      style={{
-        width: "100%",
-        background: "rgba(8,20,40,0.8)",
-        border: "1px solid rgba(56,139,253,0.15)",
-        borderRadius: 10,
-        color: "#e2e8f0",
-        padding: "11px 14px",
-        fontSize: 14,
-        outline: "none",
-        fontFamily: "var(--font-body)",
-        boxSizing: "border-box",
-        transition: "border-color 0.2s",
-      }}
-    />
-  );
+  }) => {
+    console.log("Input render", type, value);
+    return (
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e: any) => onChange(e.target.value)}
+        onKeyDown={(e: any) =>
+          e.key === "Enter" &&
+          (mode === "forgot" ? handleForgot() : handleSubmit())
+        }
+        style={{
+          width: "100%",
+          background: "rgba(8,20,40,0.8)",
+          border: "1px solid rgba(56,139,253,0.15)",
+          borderRadius: 10,
+          color: "#e2e8f0",
+          padding: "11px 14px",
+          fontSize: 14,
+          outline: "none",
+          fontFamily: "var(--font-body)",
+          boxSizing: "border-box",
+          transition: "border-color 0.2s",
+        }}
+      />
+    );
+  };
 
   // If not open, keep mounted but invisible to avoid remounting
   const visibilityStyle = open
