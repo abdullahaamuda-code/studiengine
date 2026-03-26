@@ -214,17 +214,13 @@ export default function AuthModal({
     value: string;
     onChange: (v: string) => void;
   }) => {
-    console.log("Input render", type, value);
     return (
       <input
+        // IMPORTANT: do NOT add any key prop here
         type={type}
         placeholder={placeholder}
         value={value}
         onChange={(e: any) => onChange(e.target.value)}
-        onKeyDown={(e: any) =>
-          e.key === "Enter" &&
-          (mode === "forgot" ? handleForgot() : handleSubmit())
-        }
         style={{
           width: "100%",
           background: "rgba(8,20,40,0.8)",
