@@ -100,12 +100,12 @@ export default function Navbar({
   const isLoggedIn = !!user || isGuest;
 
   // Auto-open auth if defaultAuthMode passed and user not logged in
-  useEffect(() => {
-    if (defaultAuthMode && !isLoggedIn) {
-      setAuthMode(defaultAuthMode);
-      setShowAuth(true);
-    }
-  }, [defaultAuthMode, isLoggedIn]);
+useEffect(() => {
+  if (!isLoggedIn && defaultAuthMode) {
+    setAuthMode((prev) => prev || defaultAuthMode);
+    setShowAuth(true);
+  }
+}, [defaultAuthMode, isLoggedIn]);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
