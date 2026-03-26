@@ -469,12 +469,6 @@ export default function Navbar({
         </div>
       </nav>
 
-      {showAuth && (
-        <AuthModal
-          onClose={() => setShowAuth(false)}
-          initialMode={authMode || "signup"}
-        />
-      )}
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
       {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
     </>
