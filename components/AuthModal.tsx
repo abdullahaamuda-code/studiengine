@@ -1,10 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 interface Props {
+  open: boolean;
   onClose: () => void;
   initialMode?: "signin" | "signup";
 }
@@ -108,10 +109,11 @@ function Logo() {
 }
 
 export default function AuthModal({
+  open,
   onClose,
   initialMode = "signup",
 }: Props) {
-  // just use initialMode once, no ref, no prop-driven updates
+  // internal mode, only set from initialMode once when modal first opens
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode);
 
   const [email, setEmail] = useState("");
@@ -120,6 +122,16 @@ export default function AuthModal({
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, continueAsGuest } = useAuth();
+
+  // whenever we transition from closed → open, reset mode from initialMode
+  useEffect(() => {
+    if (open) {
+      setMode(initialMode);
+      setError("");
+      setInfo("");
+      setPassword("");
+    }
+  }, [open, initialMode]);
 
   async function handleSubmit() {
     if (!email) {
@@ -225,21 +237,28 @@ export default function AuthModal({
     />
   );
 
+  // If not open, keep mounted but invisible to avoid remounting
+  const visibilityStyle = open
+    ? {}
+    : { pointerEvents: "none" as const, opacity: 0, transform: "scale(0.98)" };
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 200,
-        background: "rgba(2,8,23,0.88)",
-        backdropFilter: "blur(10px)",
+        background: open ? "rgba(2,8,23,0.88)" : "transparent",
+        backdropFilter: open ? "blur(10px)" : "none",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 20,
+        transition: "background 0.15s ease",
+        ...visibilityStyle,
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (open && e.target === e.currentTarget) onClose();
       }}
     >
       <div
@@ -254,6 +273,8 @@ export default function AuthModal({
           maxHeight: "92vh",
           overflowY: "auto",
           boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+          transform: open ? "scale(1)" : "scale(0.98)",
+          transition: "transform 0.15s ease, opacity 0.15s ease",
         }}
       >
         <button
