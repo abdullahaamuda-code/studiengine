@@ -87,45 +87,32 @@ function HomeInner() {
   const [showAuth, setShowAuth] = useState(false);
   const [showCalc, setShowCalc] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
-
-  const { user, isGuest, loading, continueAsGuest } = useAuth();
-  const searchParams = useSearchParams();
-  const { theme, toggle } = useTheme();
-
-  const isLoggedIn = !!user || isGuest;
-
-  // Stable initial auth mode (from URL) for Navbar/AuthModal
   const [initialMode, setInitialMode] = useState<
     "signin" | "signup" | undefined
   >(undefined);
 
-  useEffect(() => {
-    const mode = searchParams.get("mode");
-    if (mode === "signin" || mode === "signup") {
-      setInitialMode(mode);
-    }
-    // run once on mount; searchParams is stable for initial read
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { user, isGuest, loading, continueAsGuest } = useAuth();
+  const searchParams = useSearchParams();
+  const { theme, toggle } = useTheme();
+  const isLoggedIn = !!user || isGuest;
 
-  // Handle query params from landing/root (guest + open auth once)
+  // Read URL params once on mount, drive guest + auth modal
   useEffect(() => {
-    if (loading) return;
-
     const mode = searchParams.get("mode");
     const guest = searchParams.get("guest");
 
-    if (guest === "1" && !user && !isGuest) {
-      continueAsGuest();
-      return;
+    if (mode === "signin" || mode === "signup") {
+      setInitialMode(mode);
+      if (!user && !isGuest) {
+        setShowAuth(true);
+      }
     }
 
-    if ((mode === "signin" || mode === "signup") && !user && !isGuest) {
-      setShowAuth(true);
+    if (guest === "1" && !user && !isGuest) {
+      continueAsGuest();
     }
-    // don't depend on searchParams to avoid extra effect runs
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, user, isGuest, continueAsGuest]);
+  }, []);
 
   // Register service worker
   useEffect(() => {
@@ -140,10 +127,10 @@ function HomeInner() {
 
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
+      {/* Background orbs */}
       <div className="orb orb-1" />
       <div className="orb orb-2" />
       <div className="orb orb-3" />
-
       <div
         style={{
           position: "fixed",
@@ -156,6 +143,7 @@ function HomeInner() {
         }}
       />
 
+      {/* Navbar gets defaultAuthMode from URL once */}
       <Navbar defaultAuthMode={initialMode} />
 
       {/* Theme toggle */}
@@ -193,6 +181,7 @@ function HomeInner() {
           padding: "28px 16px 40px",
         }}
       >
+        {/* Tags */}
         <div
           className="animate-in"
           style={{ textAlign: "center", marginBottom: 24 }}
@@ -223,6 +212,7 @@ function HomeInner() {
           </div>
         </div>
 
+        {/* CTA banner when not logged in */}
         {!isLoggedIn && !loading && (
           <div
             style={{
@@ -327,6 +317,7 @@ function HomeInner() {
           {TABS.find((t) => t.id === tab)?.desc}
         </p>
 
+        {/* Main glass card */}
         <div className="glass" style={{ borderRadius: 18, padding: "22px 18px" }}>
           {isLoggedIn ? (
             <>
@@ -412,7 +403,15 @@ function HomeInner() {
       )}
 
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+
+      {/* Auth modal uses stable initialMode */}
+      {showAuth && (
+        <AuthModal
+          onClose={() => setShowAuth(false)}
+          initialMode={initialMode || "signup"}
+        />
+      )}
+
       <OnboardingModal />
       <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
       {isLoggedIn && <FeedbackButton />}
