@@ -111,7 +111,7 @@ export default function AuthModal({
   onClose,
   initialMode = "signup",
 }: Props) {
-  // IMPORTANT FIX: lock initial mode so parent re-renders don’t reset it
+  // FIX: lock the initial mode so parent prop changes don’t reset component
   const initialRef = useRef<"signin" | "signup">(initialMode);
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(
     initialRef.current
