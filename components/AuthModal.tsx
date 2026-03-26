@@ -65,6 +65,8 @@ export default function AuthModal({
       } else if (mode === "signup") {
         await signUp(email, password);
         onClose();
+      } else if (mode === "forgot") {
+        await handleForgotInternal();
       }
     } catch (e: any) {
       setError(
@@ -85,14 +87,13 @@ export default function AuthModal({
     setLoading(false);
   }
 
-  async function handleForgot() {
+  async function handleForgotInternal() {
     if (!email) {
       setError("Enter your email first.");
       return;
     }
     setError("");
     setInfo("");
-    setLoading(true);
 
     try {
       await sendPasswordResetEmail(auth, email);
@@ -104,8 +105,6 @@ export default function AuthModal({
           : "Failed to send. Try again."
       );
     }
-
-    setLoading(false);
   }
 
   function handleGuest() {
@@ -113,13 +112,32 @@ export default function AuthModal({
     onClose();
   }
 
+  const title =
+    mode === "signup"
+      ? "Create account"
+      : mode === "signin"
+      ? "Sign in"
+      : "Reset password";
+
+  const primaryLabel = loading
+    ? mode === "forgot"
+      ? "Sending..."
+      : mode === "signin"
+      ? "Signing in..."
+      : "Creating..."
+    : mode === "forgot"
+    ? "Send reset link"
+    : mode === "signin"
+    ? "Sign in"
+    : "Create account";
+
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 200,
-        background: open ? "rgba(0,0,0,0.5)" : "transparent",
+        background: open ? "rgba(2,8,23,0.88)" : "transparent",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -147,14 +165,24 @@ export default function AuthModal({
           ×
         </button>
 
-        <h2 style={{ marginTop: 0, marginBottom: 8 }}>
-          {mode === "signup"
-            ? "Create account"
-            : mode === "signin"
-            ? "Sign in"
-            : "Reset password"}
-        </h2>
+        <h2 style={{ marginTop: 0, marginBottom: 4 }}>{title}</h2>
+        <p
+          style={{
+            margin: 0,
+            marginBottom: 12,
+            fontSize: 12,
+            color: "#94a3b8",
+          }}
+        >
+          {mode === "signup" &&
+            "Create a free account to save your progress and get more CBTs."}
+          {mode === "signin" &&
+            "Welcome back. Enter your details to continue."}
+          {mode === "forgot" &&
+            "Enter your email and we'll send you a reset link."}
+        </p>
 
+        {/* Single shared input block for stability */}
         {mode !== "forgot" && (
           <>
             <input
@@ -162,14 +190,30 @@ export default function AuthModal({
               placeholder="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{ width: "100%", marginBottom: 8, padding: 8 }}
+              style={{
+                width: "100%",
+                marginBottom: 8,
+                padding: 8,
+                borderRadius: 8,
+                border: "1px solid #1e293b",
+                background: "#020617",
+                color: "white",
+              }}
             />
             <input
               type="password"
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{ width: "100%", marginBottom: 8, padding: 8 }}
+              style={{
+                width: "100%",
+                marginBottom: 8,
+                padding: 8,
+                borderRadius: 8,
+                border: "1px solid #1e293b",
+                background: "#020617",
+                color: "white",
+              }}
             />
           </>
         )}
@@ -180,7 +224,15 @@ export default function AuthModal({
             placeholder="Email for reset"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", marginBottom: 8, padding: 8 }}
+            style={{
+              width: "100%",
+              marginBottom: 8,
+              padding: 8,
+              borderRadius: 8,
+              border: "1px solid #1e293b",
+              background: "#020617",
+              color: "white",
+            }}
           />
         )}
 
@@ -209,7 +261,7 @@ export default function AuthModal({
         )}
 
         <button
-          onClick={mode === "forgot" ? handleForgot : handleSubmit}
+          onClick={handleSubmit}
           disabled={loading}
           style={{
             marginTop: 12,
@@ -222,17 +274,7 @@ export default function AuthModal({
             cursor: loading ? "not-allowed" : "pointer",
           }}
         >
-          {loading
-            ? mode === "forgot"
-              ? "Sending..."
-              : mode === "signin"
-              ? "Signing in..."
-              : "Creating..."
-            : mode === "forgot"
-            ? "Send reset link"
-            : mode === "signin"
-            ? "Sign in"
-            : "Create account"}
+          {primaryLabel}
         </button>
 
         <button
