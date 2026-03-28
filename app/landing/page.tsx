@@ -158,9 +158,8 @@ export default function LandingPage() {
 >
   <div
     style={{
-      maxWidth: 960,
-      margin: "0 auto",
-      padding: "0 16px",
+      width: "100%",              // full width
+      padding: "0 24px",
       height: 56,
       display: "flex",
       alignItems: "center",
