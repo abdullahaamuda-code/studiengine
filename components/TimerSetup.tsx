@@ -7,22 +7,25 @@ interface Props {
   selected: number | null;
 }
 
+// We keep a logical "Custom" preset, but we’ll render its label dynamically
 const PRESETS = [
-  { label: "No timer", value: null as number | null, icon: "—" },
-  { label: "30 min", value: 30 * 60, icon: "⏱" },
-  { label: "1 hour", value: 60 * 60, icon: "⏱" },
-  { label: "1.5 hrs", value: 90 * 60, icon: "⏱" },
-  { label: "Custom", value: -1 as number | null, icon: "✏️" }, // sentinel
+  { type: "none" as const, label: "No timer", value: null as number | null },
+  { type: "preset" as const, label: "30 min", value: 30 * 60 },
+  { type: "preset" as const, label: "1 hour", value: 60 * 60 },
+  { type: "preset" as const, label: "1.5 hrs", value: 90 * 60 },
+  { type: "custom" as const, label: "Custom", value: -1 as number | null }, // sentinel
 ];
 
 export default function TimerSetup({ onStart, selected }: Props) {
   const [customMinutes, setCustomMinutes] = useState<string>("");
 
-  const isCustom = selected !== null && selected < 0;
+  const isCustom = selected !== null && selected > 0 && !PRESETS.some(
+    (p) => p.type === "preset" && p.value === selected
+  );
 
-  function handlePresetClick(value: number | null) {
-    if (value === -1) {
-      // Custom selected, but don't start until user sets minutes
+  function handlePresetClick(type: "none" | "preset" | "custom", value: number | null) {
+    if (type === "custom") {
+      // Select custom mode, but don't fix seconds until user hits Set
       onStart(-1);
       return;
     }
@@ -34,6 +37,11 @@ export default function TimerSetup({ onStart, selected }: Props) {
     if (isNaN(mins) || mins <= 0) return;
     onStart(mins * 60);
   }
+
+  // Derive label when a custom duration is active
+  const customLabel = isCustom && selected
+    ? `${Math.round(selected / 60)} min`
+    : "Custom";
 
   return (
     <div style={{ marginBottom: 4 }}>
@@ -53,19 +61,26 @@ export default function TimerSetup({ onStart, selected }: Props) {
           display: "flex",
           gap: 6,
           flexWrap: "wrap" as const,
-          marginBottom: isCustom ? 8 : 0,
+          marginBottom: isCustom || selected === -1 ? 8 : 0,
         }}
       >
         {PRESETS.map((p) => {
+          const isNoneSelected = p.type === "none" && selected === null;
+          const isPresetSelected =
+            p.type === "preset" && selected === p.value;
+          const isCustomSelected =
+            p.type === "custom" && (selected === -1 || isCustom);
+
           const isSelected =
-            (p.value === null && selected === null) ||
-            (p.value === -1 && isCustom) ||
-            (p.value !== null && p.value > 0 && selected === p.value);
+            isNoneSelected || isPresetSelected || isCustomSelected;
+
+          const label =
+            p.type === "custom" ? customLabel : p.label;
 
           return (
             <button
               key={p.label}
-              onClick={() => handlePresetClick(p.value)}
+              onClick={() => handlePresetClick(p.type, p.value)}
               style={{
                 padding: "6px 14px",
                 borderRadius: 8,
@@ -84,13 +99,13 @@ export default function TimerSetup({ onStart, selected }: Props) {
                 transition: "all 0.15s",
               }}
             >
-              {p.label}
+              {label}
             </button>
           );
         })}
       </div>
 
-      {isCustom && (
+      {(selected === -1 || isCustom) && (
         <div
           style={{
             display: "flex",
@@ -102,7 +117,7 @@ export default function TimerSetup({ onStart, selected }: Props) {
           <input
             type="number"
             min={1}
-            placeholder="Minutes (e.g. 45)"
+            placeholder="Enter minutes (e.g. 45)"
             value={customMinutes}
             onChange={(e) => setCustomMinutes(e.target.value)}
             style={{
