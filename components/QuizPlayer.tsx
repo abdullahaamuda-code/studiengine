@@ -20,9 +20,10 @@ interface QuizPlayerProps {
   isPremium?: boolean;
   onComplete?: () => void;
   notice?: string;
+  timerSeconds?: number | null;
 }
 
-export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete, notice }: QuizPlayerProps) {
+export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete, notice, timerSeconds }: QuizPlayerProps) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -36,6 +37,8 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
   const [explainQ, setExplainQ] = useState("");
   const [explainText, setExplainText] = useState("");
   const [explaining, setExplaining] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number | null>(timerSeconds || null);
+  const [timerActive, setTimerActive] = useState(timerSeconds ? true : false);
 
   const q = questions[current];
   const total = questions.length;
@@ -55,6 +58,20 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [revealed, done, q, current]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (!timerActive || timeLeft === null || done) return;
+    if (timeLeft <= 0) {
+      // Time up — auto finish
+      saveHistory(score);
+      setDone(true);
+      if (onComplete) onComplete();
+      return;
+    }
+    const t = setTimeout(() => setTimeLeft(s => s !== null ? s - 1 : null), 1000);
+    return () => clearTimeout(t);
+  }, [timerActive, timeLeft, done]);
 
   async function saveHistory(finalScore: number) {
     if (!isPremium || !userId || saved) return;
@@ -110,6 +127,12 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
       setExplainText(data.explanation || data.error || "Could not get explanation.");
     } catch { setExplainText("Network error. Please try again."); }
     setExplaining(false);
+  }
+
+  function formatTime(s: number) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, "0")}`;
   }
 
   if (done) {
@@ -172,6 +195,22 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
             <div style={{ padding: "12px 14px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.15)", borderRadius: 12, textAlign: "center" }}>
               <p style={{ fontSize: 12, color: "#fbbf24", margin: 0 }}>⚡ Upgrade Premium for full review + AI explanations</p>
             </div>
+          )}
+          {wrongOnes.length > 0 && (
+            <button onClick={() => {
+              // Retry only wrong ones — no API call needed
+              setDone(false); setCurrent(0); setSelected(null); setRevealed(false);
+              setScore(0); setWrongOnes([]); setAnimKey(k => k + 1);
+              setShowReview(false); setSaved(false);
+              // Replace questions with wrong ones
+              questions.splice(0, questions.length, ...wrongOnes);
+            }} style={{
+              width: "100%", padding: "13px 0", borderRadius: 12, fontSize: 14,
+              background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)",
+              color: "#fbbf24", cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: 600,
+            }}>
+              🔄 Retry {wrongOnes.length} wrong question{wrongOnes.length > 1 ? "s" : ""}
+            </button>
           )}
           <button className="btn-primary" onClick={onReset} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>← New CBT</button>
         </div>
@@ -249,6 +288,11 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
         <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>{current + 1} / {total}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, color: "#4ade80", fontWeight: 600 }}>⚡ {score} correct</span>
+          {timeLeft !== null && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: timeLeft < 60 ? "#f87171" : "#fbbf24", background: timeLeft < 60 ? "rgba(239,68,68,0.1)" : "rgba(251,191,36,0.1)", padding: "3px 8px", borderRadius: 6, fontFamily: "var(--font-display)" }}>
+              ⏱ {formatTime(timeLeft)}
+            </span>
+          )}
           <button onClick={onReset} className="btn-ghost" style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6 }}>Quit</button>
         </div>
       </div>
