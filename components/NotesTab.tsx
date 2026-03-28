@@ -4,6 +4,7 @@ import InputPanel from "./InputPanel";
 import QuizPlayer from "./QuizPlayer";
 import QuestionCountSelector from "./QuestionCountSelector";
 import UpgradeModal from "./UpgradeModal";
+import TimerSetup from "./TimerSetup";
 import { useAuth } from "@/context/AuthContext";
 import { getUsage, canGenerateQuiz, incrementQuiz, getLimitsForUser } from "@/lib/limits";
 import { useToast } from "./Toast";
@@ -19,6 +20,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
   const [progress, setProgress] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [usageInfo, setUsageInfo] = useState<{quizCount: number} | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
@@ -75,6 +77,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
       isPremium={isPremium}
       onComplete={onCBTComplete}
       notice={notice}
+      timerSeconds={timerSeconds}
     />
   );
 
@@ -95,6 +98,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
           ℹ️ {notice}
         </div>
       )}
+      <TimerSetup onStart={setTimerSeconds} selected={timerSeconds} />
       <InputPanel
         onSubmit={handleSubmit}
         loading={loading}
