@@ -32,11 +32,13 @@ export default function TimerSetup({ onStart, selected }: Props) {
     onStart(value);
   }
 
-  function handleCustomApply() {
-    const mins = parseInt(customMinutes, 10);
-    if (isNaN(mins) || mins <= 0) return;
-    onStart(mins * 60);
-  }
+function handleCustomApply() {
+  const mins = parseInt(customMinutes, 10);
+  if (isNaN(mins) || mins <= 0) return;
+  onStart(mins * 60);
+  // hide the editor and clear the field
+  setCustomMinutes("");
+}
 
   // Derive label when a custom duration is active
   const customLabel = isCustom && selected
@@ -105,53 +107,53 @@ export default function TimerSetup({ onStart, selected }: Props) {
         })}
       </div>
 
-      {(selected === -1 || isCustom) && (
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            marginTop: 4,
-          }}
-        >
-          <input
-            type="number"
-            min={1}
-            placeholder="Enter minutes (e.g. 45)"
-            value={customMinutes}
-            onChange={(e) => setCustomMinutes(e.target.value)}
-            style={{
-              flex: 1,
-              background: "rgba(8,20,40,0.8)",
-              border: "1px solid rgba(56,139,253,0.25)",
-              borderRadius: 8,
-              color: "#e2e8f0",
-              padding: "6px 10px",
-              fontSize: 12,
-              outline: "none",
-              fontFamily: "var(--font-body)",
-            }}
-          />
-          <button
-            onClick={handleCustomApply}
-            style={{
-              padding: "7px 12px",
-              borderRadius: 8,
-              border: "none",
-              background:
-                "linear-gradient(135deg,rgba(37,99,235,0.9),rgba(8,145,178,0.9))",
-              color: "#fff",
-              fontSize: 12,
-              cursor: "pointer",
-              fontFamily: "var(--font-body)",
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-            }}
-          >
-            Set
-          </button>
-        </div>
-      )}
+{selected === -1 && (
+  <div
+    style={{
+      display: "flex",
+      gap: 6,
+      alignItems: "center",
+      marginTop: 4,
+    }}
+  >
+    <input
+      type="number"
+      min={1}
+      placeholder="Enter minutes (e.g. 45)"
+      value={customMinutes}
+      onChange={(e) => setCustomMinutes(e.target.value)}
+      style={{
+        flex: 1,
+        background: "rgba(8,20,40,0.8)",
+        border: "1px solid rgba(56,139,253,0.25)",
+        borderRadius: 8,
+        color: "#e2e8f0",
+        padding: "6px 10px",
+        fontSize: 12,
+        outline: "none",
+        fontFamily: "var(--font-body)",
+      }}
+    />
+    <button
+      onClick={handleCustomApply}
+      style={{
+        padding: "7px 12px",
+        borderRadius: 8,
+        border: "none",
+        background:
+          "linear-gradient(135deg,rgba(37,99,235,0.9),rgba(8,145,178,0.9))",
+        color: "#fff",
+        fontSize: 12,
+        cursor: "pointer",
+        fontFamily: "var(--font-body)",
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+    >
+      Set
+    </button>
+  </div>
+)}
     </div>
   );
 }
