@@ -74,56 +74,63 @@ export default function InputPanel({ onSubmit, loading, progress = 0, placeholde
       </div>
 
       {mode === "upload" ? (
-        <div className={`upload-zone${dragOver ? " drag-over" : ""}`}
-          style={{ borderRadius: 12, padding: "32px 20px", textAlign: "center" }}
-          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}>
-          <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
-            onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
-          {extracting ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-              <div className="spinner" style={{ width: 24, height: 24 }} />
-              <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>Reading PDF pages...</p>
-            </div>
-          ) : file && (text || visionImages) ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-              <div style={{ fontSize: 28 }}>{isScanned ? "🖼️" : "✅"}</div>
-              <p style={{ color: isScanned ? "#fbbf24" : "#4ade80", fontSize: 13, fontWeight: 600 }}>{file.name}</p>
-              <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
-                {formatFileSize(file.size)} • {isScanned ? `${visionImages?.length} pages — vision mode` : "Text extracted"}
-              </p>
-
-              {/* Quality warning */}
-              {isScanned && qualityWarning === "low" && (
-                <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "8px 14px", marginTop: 4 }}>
-                  <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>
-                    ⚠️ Scan quality looks low — results may be less accurate. Try a clearer scan if possible.
-                  </p>
-                </div>
-              )}
-              {isScanned && qualityWarning === "medium" && (
-                <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, padding: "8px 14px", marginTop: 4 }}>
-                  <p style={{ fontSize: 12, color: "#fde68a", margin: 0 }}>
-                    ⚡ Moderate scan quality — AI will do its best but a clearer scan gives better results.
-                  </p>
-                </div>
-              )}
-
-              <button onClick={e => { e.stopPropagation(); setFile(null); setText(""); setVisionImages(null); setIsScanned(false); setQualityWarning("good"); }}
-                style={{ marginTop: 4, fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                Remove
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>📄</div>
-              <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 4 }}>Drop your PDF here or click to browse</p>
-              <p style={{ color: "var(--text-muted)", fontSize: 12 }}>Digital or scanned • Max 30MB</p>
+        <>
+          {/* Beta notice for scanned PDFs — shown always in upload mode */}
+          {!isScanned && (
+            <div style={{ padding: "8px 12px", background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.12)", borderRadius: 8, fontSize: 11, color: "#92400e", display: "flex", gap: 6, alignItems: "flex-start" }}>
+              <span style={{ flexShrink: 0 }}>📷</span>
+              <span style={{ color: "#fbbf24", opacity: 0.8 }}>
+                <strong style={{ color: "#fbbf24" }}>Text PDFs</strong> work great. <strong style={{ color: "#fbbf24" }}>Scanned PDFs</strong> are in beta — best on clear pages up to 5 pages. For better results, copy the text and paste instead.
+              </span>
             </div>
           )}
-        </div>
+
+          <div className={`upload-zone${dragOver ? " drag-over" : ""}`}
+            style={{ borderRadius: 12, padding: "32px 20px", textAlign: "center" }}
+            onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            onClick={() => fileRef.current?.click()}>
+            <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
+              onChange={e => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
+            {extracting ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                <div className="spinner" style={{ width: 24, height: 24 }} />
+                <p style={{ color: "var(--text-secondary)", fontSize: 13 }}>Reading PDF pages...</p>
+              </div>
+            ) : file && (text || visionImages) ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 28 }}>{isScanned ? "🖼️" : "✅"}</div>
+                <p style={{ color: isScanned ? "#fbbf24" : "#4ade80", fontSize: 13, fontWeight: 600 }}>{file.name}</p>
+                <p style={{ color: "var(--text-muted)", fontSize: 12 }}>
+                  {formatFileSize(file.size)} • {isScanned ? `${visionImages?.length} pages — scanned (beta)` : "Text extracted ✓"}
+                </p>
+
+                {isScanned && qualityWarning === "low" && (
+                  <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.25)", borderRadius: 8, padding: "8px 14px", marginTop: 4 }}>
+                    <p style={{ fontSize: 12, color: "#fca5a5", margin: 0 }}>⚠️ Scan quality looks low — try a clearer scan for better results.</p>
+                  </div>
+                )}
+                {isScanned && qualityWarning === "medium" && (
+                  <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 8, padding: "8px 14px", marginTop: 4 }}>
+                    <p style={{ fontSize: 12, color: "#fde68a", margin: 0 }}>⚡ Moderate scan quality — AI will do its best.</p>
+                  </div>
+                )}
+
+                <button onClick={e => { e.stopPropagation(); setFile(null); setText(""); setVisionImages(null); setIsScanned(false); setQualityWarning("good"); }}
+                  style={{ marginTop: 4, fontSize: 11, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>📄</div>
+                <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 4 }}>Drop your PDF here or click to browse</p>
+                <p style={{ color: "var(--text-muted)", fontSize: 12 }}>Text or scanned • Max 30MB</p>
+              </div>
+            )}
+          </div>
+        </>
       ) : (
         <textarea className="input-glass" value={text} onChange={e => setText(e.target.value)}
           placeholder={placeholder} rows={9}
