@@ -4,6 +4,7 @@ import InputPanel from "./InputPanel";
 import QuizPlayer from "./QuizPlayer";
 import QuestionCountSelector from "./QuestionCountSelector";
 import UpgradeModal from "./UpgradeModal";
+import TimerSetup from "./TimerSetup";
 import { useAuth } from "@/context/AuthContext";
 import { getUsage, canGenerateQuiz, canScanPDF, incrementQuiz, incrementScan, getLimitsForUser } from "@/lib/limits";
 import { useToast } from "./Toast";
@@ -19,6 +20,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
   const [progress, setProgress] = useState(0);
+  const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [usageInfo, setUsageInfo] = useState<{quizCount: number} | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
@@ -80,6 +82,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       isPremium={isPremium}
       onComplete={onCBTComplete}
       notice={notice}
+      timerSeconds={timerSeconds}
     />
   );
 
@@ -100,6 +103,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
           ℹ️ {notice}
         </div>
       )}
+      <TimerSetup onStart={setTimerSeconds} selected={timerSeconds} />
       <InputPanel
         onSubmit={handleSubmit}
         loading={loading}
