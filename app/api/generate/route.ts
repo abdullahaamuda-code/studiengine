@@ -6,8 +6,10 @@ const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const MAX_VISION_PAGES = 5;
 
 // limits
-const MAX_CHARS_FREE = 6000;
-const MAX_CHARS_PREMIUM = 15000;
+// limits
+const MAX_CHARS_FREE = 8000;
+const MAX_CHARS_PREMIUM = 20000;
+
 
 function truncate(s: string, max: number) {
   return s.length <= max ? s : s.slice(0, max) + "\n[truncated]";
