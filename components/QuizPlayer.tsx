@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import MathText from "./MathText";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, getDocs, deleteDoc, doc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, serverTimestamp, query, orderBy, limit } from "firebase/firestore";
 
 interface Question {
   id: number;
@@ -21,9 +21,10 @@ interface QuizPlayerProps {
   onComplete?: () => void;
   notice?: string;
   timerSeconds?: number | null;
+  subject?: string | null;
 }
 
-export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete, notice, timerSeconds }: QuizPlayerProps) {
+export default function QuizPlayer({ questions, onReset, userId, isPremium, onComplete, notice, timerSeconds, subject }: QuizPlayerProps) {
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -37,6 +38,8 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
   const [explainQ, setExplainQ] = useState("");
   const [explainText, setExplainText] = useState("");
   const [explaining, setExplaining] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(timerSeconds || null);
   const [timerActive, setTimerActive] = useState(timerSeconds ? true : false);
 
@@ -83,6 +86,26 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
       });
       setSaved(true);
     } catch (e) { console.error("Failed to save history:", e); }
+  }
+
+
+  async function shareQuiz() {
+    setSharing(true);
+    try {
+      // Generate short ID
+      const id = Math.random().toString(36).slice(2, 8);
+      await setDoc(doc(db, "sharedQuizzes", id), {
+        questions,
+        subject: questions[0]?.subject || null,
+        count: questions.length,
+        createdAt: serverTimestamp(),
+        createdBy: userId || "guest",
+      });
+      const url = `${window.location.origin}/quiz/${id}`;
+      setShareUrl(url);
+      await navigator.clipboard.writeText(url).catch(() => {});
+    } catch (e) { console.error(e); }
+    setSharing(false);
   }
 
   function pick(opt: string) {
@@ -212,6 +235,20 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
               🔄 Retry {wrongOnes.length} wrong question{wrongOnes.length > 1 ? "s" : ""}
             </button>
           )}
+          {/* Share quiz */}
+          <button onClick={shareQuiz} disabled={sharing} style={{
+            width: "100%", padding: "13px 0", borderRadius: 12, fontSize: 14,
+            background: "rgba(8,145,178,0.12)", border: "1px solid rgba(8,145,178,0.25)",
+            color: "#22d3ee", cursor: sharing ? "not-allowed" : "pointer",
+            fontFamily: "var(--font-body)", fontWeight: 600,
+          }}>
+            {sharing ? "Generating link..." : shareUrl ? "✓ Link copied!" : "🔗 Share this quiz"}
+          </button>
+          {shareUrl && (
+            <div style={{ padding: "8px 12px", background: "rgba(8,145,178,0.08)", border: "1px solid rgba(8,145,178,0.2)", borderRadius: 8, fontSize: 11, color: "#22d3ee", wordBreak: "break-all", textAlign: "center" }}>
+              {shareUrl}
+            </div>
+          )}
           <button className="btn-primary" onClick={onReset} style={{ padding: "13px 0", borderRadius: 12, fontSize: 14 }}>← New CBT</button>
         </div>
 
@@ -284,6 +321,11 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
         </div>
       )}
 
+      {subject && (
+        <div style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, color: "#60a5fa", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(59,130,246,0.2)", padding: "3px 10px", borderRadius: 20 }}>📚 {subject}</span>
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-display)" }}>{current + 1} / {total}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
