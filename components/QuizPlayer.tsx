@@ -11,6 +11,7 @@ interface Question {
   answer: string;
   explanation: string;
   year?: string;
+  subject?: string | null;
 }
 
 interface QuizPlayerProps {
@@ -90,23 +91,24 @@ export default function QuizPlayer({ questions, onReset, userId, isPremium, onCo
 
 
   async function shareQuiz() {
-    setSharing(true);
-    try {
-      // Generate short ID
-      const id = Math.random().toString(36).slice(2, 8);
-      await setDoc(doc(db, "sharedQuizzes", id), {
-        questions,
-        subject: questions[0]?.subject || null,
-        count: questions.length,
-        createdAt: serverTimestamp(),
-        createdBy: userId || "guest",
-      });
-      const url = `${window.location.origin}/quiz/${id}`;
-      setShareUrl(url);
-      await navigator.clipboard.writeText(url).catch(() => {});
-    } catch (e) { console.error(e); }
-    setSharing(false);
+  setSharing(true);
+  try {
+    const id = Math.random().toString(36).slice(2, 8);
+    await setDoc(doc(db, "sharedQuizzes", id), {
+      questions,
+      subject: subject ?? questions[0]?.subject ?? null,
+      count: questions.length,
+      createdAt: serverTimestamp(),
+      createdBy: userId || "guest",
+    });
+    const url = `${window.location.origin}/quiz/${id}`;
+    setShareUrl(url);
+    await navigator.clipboard.writeText(url).catch(() => {});
+  } catch (e) {
+    console.error(e);
   }
+  setSharing(false);
+}
 
   function pick(opt: string) {
     if (revealed) return;
