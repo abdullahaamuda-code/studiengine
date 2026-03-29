@@ -15,6 +15,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [subject, setSubject] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -66,6 +67,7 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
       await incrementQuiz(userId);
       if (trimmedImages?.length) await incrementScan(userId);
       if (data.notice) setNotice(data.notice);
+      if (data.subject) setSubject(data.subject);
       setQuestions(data.questions || []);
       show(`${(data.questions || []).length} questions ready!`, "success");
     } catch (e: any) {
@@ -77,12 +79,13 @@ export default function PQQuizTab({ onCBTComplete }: { onCBTComplete?: () => voi
   if (questions) return (
     <QuizPlayer
       questions={questions}
-      onReset={() => { setQuestions(null); setNotice(""); }}
+      onReset={() => { setQuestions(null); setNotice(""); setSubject(null); }}
       userId={userId}
       isPremium={isPremium}
       onComplete={onCBTComplete}
       notice={notice}
       timerSeconds={timerSeconds}
+      subject={subject}
     />
   );
 
