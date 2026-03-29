@@ -83,6 +83,7 @@ function HomeInner() {
   const [showCalc, setShowCalc] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const { user, isGuest, loading, continueAsGuest } = useAuth();
   const searchParams = useSearchParams();
   const { theme, toggle } = useTheme();
@@ -97,7 +98,8 @@ function HomeInner() {
 
     if (guest === "1" && !user && !isGuest) {
       continueAsGuest();
-    } else if (mode === "signin" && !user && !isGuest) {
+    } else if ((mode === "signin" || mode === "signup") && !user && !isGuest) {
+      setAuthMode(mode as "signin" | "signup");
       setShowAuth(true);
     }
   }, [loading, searchParams, user, isGuest, continueAsGuest]);
@@ -226,7 +228,10 @@ function HomeInner() {
               Sign in to start using Studiengine
             </p>
             <button
-              onClick={() => setShowAuth(true)}
+              onClick={() => {
+                setAuthMode("signup");
+                setShowAuth(true);
+              }}
               className="btn-primary"
               style={{
                 padding: "7px 16px",
@@ -339,7 +344,10 @@ function HomeInner() {
                 Sign in or continue as guest to get started.
               </p>
               <button
-                onClick={() => setShowAuth(true)}
+                onClick={() => {
+                  setAuthMode("signup");
+                  setShowAuth(true);
+                }}
                 className="btn-primary"
                 style={{
                   padding: "13px 28px",
@@ -396,8 +404,12 @@ function HomeInner() {
 
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
 
-      {/* Auth modal controlled by showAuth */}
-      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+      {/* Auth modal controlled by showAuth + authMode */}
+      <AuthModal
+        open={showAuth}
+        onClose={() => setShowAuth(false)}
+        defaultMode={authMode}
+      />
 
       <OnboardingModal />
       <InstallPrompt
