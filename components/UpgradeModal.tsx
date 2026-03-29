@@ -15,15 +15,17 @@ const FREE_FEATURES = [
   "Built-in calculator",
 ];
 
+
 const PREMIUM_FEATURES = [
-  { text: "Unlimited CBTs every day", hot: false },
-  { text: "Up to 30 questions per session", hot: false },
-  { text: "Full extensive review of all questions", hot: true },
-  { text: "AI explanations per question", hot: true },
-  { text: "CBT history & score tracking", hot: false },
-  { text: "Text PDF upload (up to 30 pages)", hot: false },
-  { text: "Scanned PDF support (beta, best effort)", hot: false },
+  { text: "Unlimited CBT generations every day (no daily cap)", hot: true },
+  { text: "Up to 30 questions per session for deep practice", hot: false },
+  { text: "Full detailed review of ALL questions you answered", hot: true },
+  { text: "AI step‑by‑step explanations for every question", hot: true },
+  { text: "CBT history, stats & score tracking over time", hot: false },
+  { text: "Upload long text/PDFs (up to 30 pages) for quizzes", hot: false },
+  { text: "Scanned PDF support (beta) with best‑effort reading", hot: false },
 ];
+
 
 export default function UpgradeModal({ onClose, reason }: Props) {
   const { user } = useAuth();
