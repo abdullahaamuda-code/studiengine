@@ -15,6 +15,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [subject, setSubject] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState(10);
   const [showUpgrade, setShowUpgrade] = useState(false);
@@ -61,6 +62,7 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
 
       await incrementQuiz(userId);
       if (data.notice) setNotice(data.notice);
+      if (data.subject) setSubject(data.subject);
       setQuestions(data.questions || []);
       show(`${(data.questions || []).length} questions generated!`, "success");
     } catch (e: any) {
@@ -72,12 +74,13 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
   if (questions) return (
     <QuizPlayer
       questions={questions}
-      onReset={() => { setQuestions(null); setNotice(""); }}
+      onReset={() => { setQuestions(null); setNotice(""); setSubject(null); }}
       userId={userId}
       isPremium={isPremium}
       onComplete={onCBTComplete}
       notice={notice}
       timerSeconds={timerSeconds}
+      subject={subject}
     />
   );
 
