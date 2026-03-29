@@ -9,6 +9,8 @@ import InstallPrompt from "@/components/InstallPrompt";
 import FeedbackButton from "@/components/FeedbackButton";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import AuthModal from "@/components/AuthModal";
+
 
 const NotesTab = dynamic(() => import("@/components/NotesTab"), { ssr: false });
 const PQAnalyzerTab = dynamic(() => import("@/components/PQAnalyzerTab"), { ssr: false });
@@ -39,6 +41,7 @@ function HomeInner() {
   const { user, isGuest, loading, continueAsGuest } = useAuth();
   const searchParams = useSearchParams();
   const { theme, toggle } = useTheme();
+  const [showAuth, setShowAuth] = useState(false);
 
   const isLoggedIn = !!user || isGuest;
 
