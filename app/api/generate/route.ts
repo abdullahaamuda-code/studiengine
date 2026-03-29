@@ -5,11 +5,10 @@ const TEXT_MODEL = "llama-3.3-70b-versatile";
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 const MAX_VISION_PAGES = 5;
 
-// Different limits for free vs premium (text path)
+// limits
 const MAX_CHARS_FREE = 6000;
 const MAX_CHARS_PREMIUM = 15000;
 
-// Shared truncate helper
 function truncate(s: string, max: number) {
   return s.length <= max ? s : s.slice(0, max) + "\n[truncated]";
 }
@@ -65,13 +64,15 @@ function normalizeQuestions(qs: any[]): any[] {
   const L = ["A", "B", "C", "D"];
   return qs.map((q, i) => {
     if (!q || typeof q !== "object") return q;
-    const opts = (q.options || []).slice(0, 4).map((o: string, j: number) => {
-      const text =
-        typeof o === "string"
-          ? o.replace(/^[A-Za-z][.)]\s*/, "").trim()
-          : String(o);
-      return `${L[j]}. ${text}`;
-    });
+    const opts = (q.options || [])
+      .slice(0, 4)
+      .map((o: string, j: number) => {
+        const text =
+          typeof o === "string"
+            ? o.replace(/^[A-Za-z][.)]\s*/, "").trim()
+            : String(o);
+        return `${L[j]}. ${text}`;
+      });
     const ans =
       String(q.answer || "A")
         .trim()
@@ -104,7 +105,12 @@ async function callGroq(
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
-      body: JSON.stringify({ model, temperature: 0.3, max_tokens: maxTokens, messages }),
+      body: JSON.stringify({
+        model,
+        temperature: 0.3,
+        max_tokens: maxTokens,
+        messages,
+      }),
     });
     if (res.status === 429 || res.status === 503) {
       if (attempt < 3) {
@@ -242,8 +248,7 @@ function buildPrompt(type: string, count: number): string {
   const math = `Math in $...$: $\\frac{a}{b}$, $\\lim_{x\\to 0}$, $\\sqrt{x}$, $x^2$, $\\sin(x)$.`;
   const opts = `Options labeled A. B. C. D. always.`;
   const fmt =
-    `[{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],` +
-    `"answer":"A","explanation":"..."}]`;
+    `[{"id":1,"question":"...","options":["A. ...","B. ...","C. ...","D. ..."],"answer":"A","explanation":"..."}]`;
   if (type === "notes_quiz")
     return `Nigerian exam AI. Generate EXACTLY ${count} MCQs from the material.
 Return ONLY a JSON array, no markdown. ${math} ${opts}
@@ -306,7 +311,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
 
-    // ── VISION PATH (scanned PDF — beta, max 5 pages) ─────────────────────────
+    // VISION PATH
     if (images && images.length > 0) {
       const pages = images.slice(0, MAX_VISION_PAGES);
       console.log(
@@ -363,12 +368,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // vision: keep using 6000 chars for stability
-      const safeVision = truncate(fixLatex(extracted), MAX_CHARS_FREE);
+      // keep vision at 6k chars for now
+      const safe = truncate(fixLatex(extracted), MAX_CHARS_FREE);
       const userMsg =
         type === "pq_quiz"
-          ? `Convert ALL these extracted questions into a JSON array:\n\n${safeVision}`
-          : safeVision;
+          ? `Convert ALL these extracted questions into a JSON array:\n\n${safe}`
+          : safe;
 
       const raw = await callText(
         [
@@ -405,10 +410,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // ── TEXT PATH (reliable) ──────────────────────────────────────────────────
+    // TEXT PATH
     const maxChars = isPremium ? MAX_CHARS_PREMIUM : MAX_CHARS_FREE;
     const safe = truncate(content, maxChars);
-
     const userMsg =
       type === "pq_quiz"
         ? `Convert these past questions into a quiz. Return ONLY the JSON array:\n\n${safe}`
