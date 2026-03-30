@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       </div>
     </div>`;
 
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", { [web:441][web:443]
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
