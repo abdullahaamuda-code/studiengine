@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       to: batch,
       subject,
       html,
-    }); [web:397][web:401]
+    }); 
 
     if (error) {
       return NextResponse.json({ error }, { status: 500 });
