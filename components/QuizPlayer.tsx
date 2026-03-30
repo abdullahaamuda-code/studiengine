@@ -5,7 +5,6 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
-  deleteDoc,
   doc,
   setDoc,
   serverTimestamp,
@@ -25,6 +24,7 @@ interface QuizPlayerProps {
   questions: Question[];
   onReset: () => void;
   userId?: string;
+  userEmail?: string | null;
   isPremium?: boolean;
   onComplete?: () => void;
   notice?: string;
@@ -36,6 +36,7 @@ export default function QuizPlayer({
   questions,
   onReset,
   userId,
+  userEmail,
   isPremium,
   onComplete,
   notice,
@@ -59,7 +60,7 @@ export default function QuizPlayer({
   const [sharing, setSharing] = useState(false);
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(timerSeconds || null);
-  const [timerActive, setTimerActive] = useState(timerSeconds ? true : false);
+  const [timerActive] = useState(timerSeconds ? true : false);
 
   const q = questions[current];
   const total = questions.length;
@@ -101,6 +102,7 @@ export default function QuizPlayer({
     return () => clearTimeout(t);
   }, [timerActive, timeLeft, done, score]);
 
+  // Save detailed history for premium only
   async function saveHistory(finalScore: number) {
     if (!isPremium || !userId || saved) return;
     try {
@@ -109,6 +111,7 @@ export default function QuizPlayer({
         score: finalScore,
         total,
         pct: Math.round((finalScore / total) * 100),
+        subject: subject ?? questions[0]?.subject ?? null,
         createdAt: serverTimestamp(),
       });
       setSaved(true);
@@ -117,11 +120,13 @@ export default function QuizPlayer({
     }
   }
 
-  // Log CBT session for all users (for admin/debugging)
+  // Log CBT session for guests / free users only (for admin/debugging)
   async function logCbtSession(finalScore: number) {
+    if (isPremium) return; // don't log duplicates for premium users
     try {
       await addDoc(collection(db, "cbtSessions"), {
         userId: userId || "guest",
+        userEmail: userEmail || null,
         questions,
         score: finalScore,
         total,
