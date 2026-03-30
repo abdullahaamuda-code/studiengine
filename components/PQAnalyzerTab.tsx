@@ -3,8 +3,16 @@ import { useState, useEffect } from "react";
 import InputPanel from "./InputPanel";
 import UpgradeModal from "./UpgradeModal";
 import { useAuth } from "@/context/AuthContext";
-import { getUsage, canGenerateQuiz, canScanPDF, incrementQuiz, incrementScan, getLimitsForUser } from "@/lib/limits";
+import {
+  getUsage,
+  canGenerateQuiz,
+  canScanPDF,
+  incrementQuiz,
+  incrementScan,
+  getLimitsForUser,
+} from "@/lib/limits";
 import { useToast } from "./Toast";
+import { useUsage } from "@/hooks/useUsage";
 
 interface Analysis {
   topTopics: { topic: string; frequency: string; count: number; likelyExam: boolean }[];
@@ -17,37 +25,42 @@ interface Analysis {
 }
 
 export default function PQAnalyzerTab() {
-  const { userId, isPremium, isGuest } = useAuth();
+  const { userId, isPremium: rawIsPremium, isGuest } = useAuth();
   const { show } = useToast();
+  const { usage, hasActivePremium } = useUsage();
+  const isPremium = hasActivePremium;
+
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
-  const [usageInfo, setUsageInfo] = useState<{quizCount:number} | null>(null);
+  const [usageInfo, setUsageInfo] = useState<{ quizCount: number } | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
   const quizLimit = isGuest ? 2 : isPremium ? Infinity : 4;
 
-  useEffect(() => {
-    if (!userId) return;
-    getUsage(userId).then(u => setUsageInfo({ quizCount: u.quizCount })).catch(() => {});
-  }, [userId]);
+useEffect(() => {
+  if (!userId) return;
+  getUsage(userId)
+    .then(u => setUsageInfo({ quizCount: u.quizCount }))
+    .catch(() => {});
+}, [userId]);
 
-  async function handleSubmit(content: string, images?: string[]) {
-    if (!userId) { setError("Please sign in or continue as guest first."); return; }
-    setError(""); setLoading(true); setProgress(0);
-    try {
-      const usage = await getUsage(userId);
-      if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} CBT analyses for today. Upgrade for unlimited.`);
-        setShowUpgrade(true); setLoading(false); return;
-      }
-      if (images?.length && !canScanPDF(usage, isGuest)) {
-        setUpgradeReason("You've used all free scanned PDF uploads for today. Upgrade for unlimited scans.");
-        setShowUpgrade(true); setLoading(false); return;
-      }
+async function handleSubmit(content: string, images?: string[]) {
+  if (!userId) { setError("Please sign in or continue as guest first."); return; }
+  setError(""); setLoading(true); setProgress(0);
+  try {
+    const usageDoc = await getUsage(userId);
+    if (!canGenerateQuiz(usageDoc, isGuest) && !isPremium) {
+      setUpgradeReason(`You've used all ${quizLimit} CBT analyses for today. Upgrade for unlimited.`);
+      setShowUpgrade(true); setLoading(false); return;
+    }
+    if (images?.length && !canScanPDF(usageDoc, isGuest) && !isPremium) {
+      setUpgradeReason("You've used all free scanned PDF uploads for today. Upgrade for unlimited scans.");
+      setShowUpgrade(true); setLoading(false); return;
+    }
       const trimmedImages = images ? images.slice(0, limits.maxPages) : undefined;
       const batches = trimmedImages ? Math.ceil(trimmedImages.length / 5) : 1;
       let prog = 10; setProgress(prog);
