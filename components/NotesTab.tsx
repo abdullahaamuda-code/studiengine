@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import InputPanel from "./InputPanel";
 import QuizPlayer from "./QuizPlayer";
@@ -6,12 +7,21 @@ import QuestionCountSelector from "./QuestionCountSelector";
 import UpgradeModal from "./UpgradeModal";
 import TimerSetup from "./TimerSetup";
 import { useAuth } from "@/context/AuthContext";
-import { getUsage, canGenerateQuiz, incrementQuiz, getLimitsForUser } from "@/lib/limits";
+import {
+  getUsage,
+  canGenerateQuiz,
+  incrementQuiz,
+  getLimitsForUser,
+} from "@/lib/limits";
 import { useToast } from "./Toast";
+import { useUsage } from "@/hooks/useUsage";
 
 export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void }) {
-  const { userId, isPremium, isGuest } = useAuth();
+  const { userId, isPremium: rawIsPremium, isGuest } = useAuth();
   const { show } = useToast();
+  const { usage, hasActivePremium } = useUsage();
+  const isPremium = hasActivePremium;
+
   const [questions, setQuestions] = useState<any[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -22,26 +32,30 @@ export default function NotesTab({ onCBTComplete }: { onCBTComplete?: () => void
   const [upgradeReason, setUpgradeReason] = useState("");
   const [progress, setProgress] = useState(0);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
-  const [usageInfo, setUsageInfo] = useState<{quizCount: number} | null>(null);
+  const [usageInfo, setUsageInfo] = useState<{ quizCount: number } | null>(null);
 
   const limits = getLimitsForUser(isPremium, isGuest);
   const quizLimit = isGuest ? 2 : isPremium ? Infinity : 4;
 
-  useEffect(() => {
-    if (!userId) return;
-    getUsage(userId).then(u => setUsageInfo({ quizCount: u.quizCount })).catch(() => {});
-  }, [userId]);
+ useEffect(() => {
+  if (!userId) return;
+  getUsage(userId)
+    .then(u => setUsageInfo({ quizCount: u.quizCount }))
+    .catch(() => {});
+}, [userId]);
 
-  async function handleSubmit(content: string, images?: string[]) {
-    if (!userId) { setError("Please sign in or continue as guest first."); return; }
-    setError(""); setNotice(""); setLoading(true); setProgress(10);
+async function handleSubmit(content: string, images?: string[]) {
+  if (!userId) { setError("Please sign in or continue as guest first."); return; }
+  setError(""); setNotice(""); setLoading(true); setProgress(10);
 
-    try {
-      const usage = await getUsage(userId);
-      if (!canGenerateQuiz(usage, isGuest)) {
-        setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
-        setShowUpgrade(true); setLoading(false); setProgress(0); return;
-      }
+  try {
+    const usageDoc = await getUsage(userId);
+    if (!canGenerateQuiz(usageDoc, isGuest) && !isPremium) {
+      setUpgradeReason(`You've used all ${quizLimit} CBTs for today. Upgrade for unlimited access.`);
+      setShowUpgrade(true); setLoading(false); setProgress(0); return;
+    }
+
+    // rest of your existing handleSubmit...
 
       const trimmedImages = images ? images.slice(0, limits.maxPages) : undefined;
       const interval = setInterval(() => setProgress(p => Math.min(p + 2, 88)), 800);
