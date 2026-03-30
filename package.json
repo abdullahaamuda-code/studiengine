@@ -15,7 +15,8 @@
     "pdfjs-dist": "^4.4.168",
     "katex": "^0.16.11",
     "firebase": "^10.12.0",
-    "browser-image-compression": "^2.0.2"
+    "browser-image-compression": "^2.0.2",
+    "resend": "^3.4.0"
   },
   "devDependencies": {
     "@types/node": "^20",
