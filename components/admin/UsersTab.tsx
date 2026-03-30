@@ -11,6 +11,7 @@ import {
   writeBatch,
   query,
   limit,
+  Timestamp,
 } from "firebase/firestore";
 
 interface UserRow {
@@ -20,6 +21,7 @@ interface UserRow {
   isPremium: boolean;
   lastReset: string;
   email?: string;
+  premiumExpiry?: any; // Firestore Timestamp
 }
 
 export default function UsersTab() {
@@ -29,13 +31,26 @@ export default function UsersTab() {
   const [error, setError] = useState("");
   const [actionMsg, setActionMsg] = useState("");
   const [resettingAll, setResettingAll] = useState(false);
+  const [expiryInputs, setExpiryInputs] = useState<Record<string, string>>({});
 
   async function load() {
     setLoading(true);
     setError("");
     try {
       const snap = await getDocs(query(collection(db, "usage"), limit(100)));
-      setUsers(snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as UserRow[]);
+      const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as UserRow[];
+      setUsers(data);
+
+      // hydrate expiryInputs
+      const next: Record<string, string> = {};
+      data.forEach(u => {
+        if (u.premiumExpiry?.toDate) {
+          const d = u.premiumExpiry.toDate() as Date;
+          const iso = d.toISOString().slice(0, 10); // YYYY-MM-DD
+          next[u.id] = iso;
+        }
+      });
+      setExpiryInputs(next);
     } catch (e: any) {
       setError(e.message);
     }
@@ -49,9 +64,32 @@ export default function UsersTab() {
     setTimeout(() => setActionMsg(""), 3000);
   }
 
-  async function setPremium(userId: string, value: boolean) {
-    await setDoc(doc(db, "usage", userId), { isPremium: value }, { merge: true });
-    toast(value ? "Premium granted ✓" : "Premium removed ✓");
+  async function setPremiumFlag(userId: string, value: boolean) {
+    await setDoc(
+      doc(db, "usage", userId),
+      { isPremium: value },
+      { merge: true }
+    );
+    toast(value ? "Premium flag set ✓" : "Premium removed ✓");
+    load();
+  }
+
+  async function setPremiumUntil(userId: string) {
+    const dateStr = expiryInputs[userId];
+    if (!dateStr) {
+      alert("Pick a date first");
+      return;
+    }
+    const date = new Date(dateStr + "T23:59:59");
+    await setDoc(
+      doc(db, "usage", userId),
+      {
+        isPremium: true,
+        premiumExpiry: Timestamp.fromDate(date),
+      },
+      { merge: true }
+    );
+    toast(`Premium until ${dateStr} ✓`);
     load();
   }
 
@@ -186,6 +224,19 @@ export default function UsersTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {filtered.map(u => {
             const isGuest = u.id.startsWith("guest_");
+            const now = new Date();
+            const expDate: Date | null =
+              u.premiumExpiry?.toDate ? u.premiumExpiry.toDate() : null;
+            const isActivePremium =
+              u.isPremium && expDate && expDate.getTime() > now.getTime();
+            const statusLabel = isActivePremium
+              ? `⚡ Premium until ${expDate.toISOString().slice(0, 10)}`
+              : u.isPremium && expDate
+              ? "⚠️ Premium expired"
+              : u.isPremium
+              ? "⚡ Premium (no date)"
+              : "Free";
+
             return (
               <div
                 key={u.id}
@@ -201,7 +252,7 @@ export default function UsersTab() {
                 }}
               >
                 {/* User info */}
-                <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ flex: 1, minWidth: 220 }}>
                   <p
                     style={{
                       fontSize: 13,
@@ -281,25 +332,81 @@ export default function UsersTab() {
                   </div>
                 </div>
 
-                {/* Plan */}
-                <span
+                {/* Plan + expiry */}
+                <div
                   style={{
-                    fontSize: 11,
-                    padding: "4px 12px",
-                    borderRadius: 20,
-                    background: u.isPremium
-                      ? "rgba(251,191,36,0.12)"
-                      : "rgba(30,41,59,0.6)",
-                    color: u.isPremium ? "#fbbf24" : "#475569",
-                    border: `1px solid ${
-                      u.isPremium
-                        ? "rgba(251,191,36,0.25)"
-                        : "rgba(255,255,255,0.06)"
-                    }`,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 6,
+                    minWidth: 180,
                   }}
                 >
-                  {u.isPremium ? "⚡ Premium" : "Free"}
-                </span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 12px",
+                      borderRadius: 20,
+                      background: isActivePremium
+                        ? "rgba(251,191,36,0.12)"
+                        : "rgba(30,41,59,0.6)",
+                      color: isActivePremium ? "#fbbf24" : "#475569",
+                      border: `1px solid ${
+                        isActivePremium
+                          ? "rgba(251,191,36,0.25)"
+                          : "rgba(255,255,255,0.06)"
+                      }`,
+                    }}
+                  >
+                    {statusLabel}
+                  </span>
+
+                  {u.isPremium && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                      }}
+                    >
+                      <input
+                        type="date"
+                        value={expiryInputs[u.id] || ""}
+                        onChange={e =>
+                          setExpiryInputs(prev => ({
+                            ...prev,
+                            [u.id]: e.target.value,
+                          }))
+                        }
+                        style={{
+                          fontSize: 11,
+                          padding: "4px 8px",
+                          borderRadius: 8,
+                          border:
+                            "1px solid rgba(148,163,184,0.6)",
+                          background: "rgba(15,23,42,0.9)",
+                          color: "#e5e7eb",
+                        }}
+                      />
+                      <button
+                        onClick={() => setPremiumUntil(u.id)}
+                        style={{
+                          fontSize: 11,
+                          padding: "5px 9px",
+                          borderRadius: 8,
+                          border:
+                            "1px solid rgba(59,130,246,0.5)",
+                          background:
+                            "rgba(37,99,235,0.15)",
+                          color: "#93c5fd",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Save date
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Actions */}
                 <div
@@ -312,7 +419,7 @@ export default function UsersTab() {
                   {btn(
                     u.isPremium ? "#f87171" : "#fbbf24",
                     u.isPremium ? "Remove ⚡" : "Grant ⚡",
-                    () => setPremium(u.id, !u.isPremium)
+                    () => setPremiumFlag(u.id, !u.isPremium)
                   )}
                   {btn("#60a5fa", "Reset", () => resetLimits(u.id))}
                   {btn("#f87171", "Delete", () => {
