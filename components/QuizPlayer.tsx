@@ -5,14 +5,10 @@ import { db } from "@/lib/firebase";
 import {
   collection,
   addDoc,
-  getDocs,
   deleteDoc,
   doc,
   setDoc,
   serverTimestamp,
-  query,
-  orderBy,
-  limit,
 } from "firebase/firestore";
 
 interface Question {
@@ -61,6 +57,7 @@ export default function QuizPlayer({
   const [explaining, setExplaining] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [copyMessage, setCopyMessage] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(timerSeconds || null);
   const [timerActive, setTimerActive] = useState(timerSeconds ? true : false);
 
@@ -92,6 +89,7 @@ export default function QuizPlayer({
     if (timeLeft <= 0) {
       // Time up — auto finish
       saveHistory(score);
+      logCbtSession(score);
       setDone(true);
       if (onComplete) onComplete();
       return;
@@ -101,7 +99,7 @@ export default function QuizPlayer({
       1000
     );
     return () => clearTimeout(t);
-  }, [timerActive, timeLeft, done]);
+  }, [timerActive, timeLeft, done, score]);
 
   async function saveHistory(finalScore: number) {
     if (!isPremium || !userId || saved) return;
@@ -119,8 +117,26 @@ export default function QuizPlayer({
     }
   }
 
+  // Log CBT session for all users (for admin/debugging)
+  async function logCbtSession(finalScore: number) {
+    try {
+      await addDoc(collection(db, "cbtSessions"), {
+        userId: userId || "guest",
+        questions,
+        score: finalScore,
+        total,
+        pct: Math.round((finalScore / total) * 100),
+        subject: subject ?? questions[0]?.subject ?? null,
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Failed to log CBT session:", e);
+    }
+  }
+
   async function shareQuiz() {
     setSharing(true);
+    setCopyMessage(null);
     try {
       const id = Math.random().toString(36).slice(2, 8);
       await setDoc(doc(db, "sharedQuizzes", id), {
@@ -132,9 +148,17 @@ export default function QuizPlayer({
       });
       const url = `${window.location.origin}/quiz/${id}`;
       setShareUrl(url);
-      await navigator.clipboard.writeText(url).catch(() => {});
+
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopyMessage("✓ Link copied — share it!");
+      } catch (err) {
+        console.error("Failed to copy link", err);
+        setCopyMessage("Could not copy automatically. Long‑press to copy.");
+      }
     } catch (e) {
       console.error(e);
+      setCopyMessage("Could not generate share link. Please try again.");
     }
     setSharing(false);
   }
@@ -155,6 +179,7 @@ export default function QuizPlayer({
   function next() {
     if (current + 1 >= total) {
       saveHistory(score);
+      logCbtSession(score);
       setDone(true);
       if (onComplete) onComplete();
       return;
@@ -477,9 +502,7 @@ export default function QuizPlayer({
           >
             {sharing
               ? "Generating share link..."
-              : shareUrl
-              ? "✓ Link copied — share it!"
-              : "🔗 Share this CBT with friends"}
+              : copyMessage || "🔗 Share this CBT with friends"}
           </button>
           {shareUrl && (
             <div
