@@ -7,10 +7,12 @@ import UsersTab from "@/components/admin/UsersTab";
 import EmailTab from "@/components/admin/EmailTab";
 import FeedbackTab from "@/components/admin/FeedbackTab";
 import AIAssistant from "@/components/admin/AIAssistant";
+import SessionsTab from "@/components/admin/SessionsTab";
 
 const TABS = [
   { id: "stats", label: "📊 Analytics" },
   { id: "users", label: "👥 Users" },
+  { id: "sessions", label: "📝 CBT Logs" },
   { id: "email", label: "📧 Email" },
   { id: "feedback", label: "💬 Feedback" },
   { id: "ai", label: "🤖 AI Assistant" },
@@ -28,7 +30,7 @@ export default function AdminPage() {
     if (!user) { router.replace("/"); return; }
     if (adminUid && user.uid !== adminUid) { router.replace("/"); return; }
     setAuthed(true);
-  }, [user, loading, adminUid]);
+  }, [user, loading, adminUid, router]);
 
   if (loading || !authed) {
     return (
@@ -46,6 +48,7 @@ export default function AdminPage() {
       <div style={{ background: "rgba(8,20,40,0.9)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(56,139,253,0.15)", padding: "0 20px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 26, height: 26, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
+            {/* logo svg unchanged */}
             <svg width="26" height="26" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="ab" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#0a1628"/><stop offset="100%" stopColor="#0c1a2e"/></linearGradient>
@@ -64,10 +67,14 @@ export default function AdminPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 11, color: "#64748b" }}>{user?.email}</span>
-          {/* Show UID for first-time setup */}
           {!adminUid && (
-            <button onClick={() => { navigator.clipboard.writeText(user?.uid || ""); alert("UID copied! Add as NEXT_PUBLIC_ADMIN_UID in .env.local"); }}
-              style={{ fontSize: 11, background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24", padding: "4px 10px", borderRadius: 6, cursor: "pointer" }}>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(user?.uid || "");
+                alert("UID copied! Add as NEXT_PUBLIC_ADMIN_UID in .env.local");
+              }}
+              style={{ fontSize: 11, background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)", color: "#fbbf24", padding: "4px 10px", borderRadius: 6, cursor: "pointer" }}
+            >
               Copy UID
             </button>
           )}
@@ -81,14 +88,25 @@ export default function AdminPage() {
         {/* Tabs */}
         <div style={{ display: "flex", gap: 6, marginBottom: 24, overflowX: "auto", paddingBottom: 4 }}>
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              padding: "9px 16px", borderRadius: 10, border: "1px solid",
-              borderColor: tab === t.id ? "rgba(59,130,246,0.5)" : "rgba(56,139,253,0.15)",
-              background: tab === t.id ? "linear-gradient(135deg,rgba(37,99,235,0.3),rgba(8,145,178,0.2))" : "rgba(8,20,40,0.5)",
-              color: tab === t.id ? "#93c5fd" : "#64748b",
-              fontSize: 13, fontWeight: tab === t.id ? 700 : 400,
-              cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit",
-            }}>
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              style={{
+                padding: "9px 16px",
+                borderRadius: 10,
+                border: "1px solid",
+                borderColor: tab === t.id ? "rgba(59,130,246,0.5)" : "rgba(56,139,253,0.15)",
+                background: tab === t.id
+                  ? "linear-gradient(135deg,rgba(37,99,235,0.3),rgba(8,145,178,0.2))"
+                  : "rgba(8,20,40,0.5)",
+                color: tab === t.id ? "#93c5fd" : "#64748b",
+                fontSize: 13,
+                fontWeight: tab === t.id ? 700 : 400,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                fontFamily: "inherit",
+              }}
+            >
               {t.label}
             </button>
           ))}
@@ -96,6 +114,7 @@ export default function AdminPage() {
 
         {tab === "stats" && <StatsTab />}
         {tab === "users" && <UsersTab />}
+        {tab === "sessions" && <SessionsTab />}
         {tab === "email" && <EmailTab />}
         {tab === "feedback" && <FeedbackTab />}
         {tab === "ai" && <AIAssistant />}
