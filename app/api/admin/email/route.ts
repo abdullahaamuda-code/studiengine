@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { Resend } from "resend";
 
 function checkAuth(req: NextRequest) {
   const adminUid = process.env.NEXT_PUBLIC_ADMIN_UID;
   return !adminUid || req.headers.get("x-admin-uid") === adminUid;
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: NextRequest) {
   if (!checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!process.env.RESEND_API_KEY) {
+  const brevoKey = process.env.BREVO_API_KEY;
+  if (!brevoKey) {
     return NextResponse.json(
-      { error: "RESEND_API_KEY not configured" },
+      { error: "BREVO_API_KEY not configured" },
       { status: 500 }
     );
   }
@@ -51,7 +49,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
+    const htmlContent = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px">
       <div style="background:linear-gradient(135deg,#1e3a8a,#0891b2);padding:20px;border-radius:12px 12px 0 0;text-align:center">
         <h1 style="color:white;margin:0">Studiengine</h1>
       </div>
@@ -64,20 +62,38 @@ export async function POST(req: NextRequest) {
       </div>
     </div>`;
 
-    const batch = emailList.slice(0, 100).map((r) => r.email);
+    const res = await fetch("https://api.brevo.com/v3/smtp/email", { [web:441][web:443]
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": brevoKey,
+      },
+      body: JSON.stringify({
+        sender: {
+          name: "Studiengine",
+          email: "technologywiz10@gmail.com",
+        },
+        to: emailList.slice(0, 100),
+        subject,
+        htmlContent,
+      }),
+    });
 
-    const { error } = await resend.emails.send({
-      from: "Studiengine <technologywiz10@gmail.com>",
-      to: batch,
-      subject,
-      html,
-    }); 
-
-    if (error) {
-      return NextResponse.json({ error }, { status: 500 });
+    if (!res.ok) {
+      let errText = "";
+      try {
+        const errJson = await res.json();
+        errText =
+          (errJson as any)?.message ||
+          JSON.stringify(errJson) ||
+          "Brevo error";
+      } catch {
+        errText = "Brevo error";
+      }
+      return NextResponse.json({ error: errText }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, sent: batch.length });
+    return NextResponse.json({ success: true, sent: emailList.length });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
