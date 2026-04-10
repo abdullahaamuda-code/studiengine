@@ -1,3 +1,5 @@
+// lib/pdf.ts - PDF text extraction
+
 "use client";
 
 let initialized = false;
@@ -22,7 +24,9 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   }).promise;
 
   const textParts: string[] = [];
-  for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 50); pageNum++) {
+  const maxPages = Math.min(pdf.numPages, 50);
+  
+  for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
     const page = await pdf.getPage(pageNum);
     const textContent = await page.getTextContent();
     const pageText = textContent.items
@@ -30,23 +34,27 @@ export async function extractTextFromPDF(file: File): Promise<string> {
       .join(" ")
       .replace(/\s+/g, " ")
       .trim();
-    if (pageText) textParts.push(pageText);
+    if (pageText) {
+      textParts.push(`--- PAGE ${pageNum} ---\n${pageText}`);
+    }
   }
 
   const combined = textParts.join("\n\n").trim();
+  
+  // If we got text, return it
   if (combined.length > 100) return combined;
 
+  // Otherwise, fall back to image extraction (scanned PDF)
   return await extractImagesFromPDF(pdf);
 }
 
 async function extractImagesFromPDF(pdf: any): Promise<string> {
   const images: string[] = [];
-  const pageCount = Math.min(pdf.numPages, 50);
+  const pageCount = Math.min(pdf.numPages, 5); // Max 5 pages for scanned PDFs
   let lowContrastPages = 0;
 
   for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
     const page = await pdf.getPage(pageNum);
-    // Original scale and quality — unchanged
     const viewport = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement("canvas");
     canvas.width = viewport.width;
@@ -54,11 +62,10 @@ async function extractImagesFromPDF(pdf: any): Promise<string> {
     const ctx = canvas.getContext("2d")!;
     await page.render({ canvasContext: ctx, viewport }).promise;
 
-    // Sample pixels just for the warning — never affects processing
+    // Check quality
     const sample = ctx.getImageData(0, 0, Math.min(canvas.width, 100), Math.min(canvas.height, 100));
     if (getPixelVariance(sample.data) < 40) lowContrastPages++;
 
-    // Original quality — unchanged
     const base64 = canvas.toDataURL("image/jpeg", 0.7).split(",")[1];
     images.push(base64);
   }
