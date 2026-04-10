@@ -65,7 +65,7 @@ async function callOpenRouter(messages: any[], maxTokens = 3000): Promise<string
       "X-Title": "Studiengine",
     },
     body: JSON.stringify({
-      model: "openrouter/free", // auto-routes to best free model
+      model: "openrouter/free",
       messages,
       max_tokens: maxTokens,
       temperature: 0.3,
@@ -87,16 +87,32 @@ export async function callTextAI(
   maxTokens = 3000,
   isPremium = false
 ): Promise<string> {
-  // Priority: Premium key → Text key → Analyze key → Vision key → Fallback key
-  const keys = [
-    isPremium ? process.env.GROQ_PREMIUM_KEY : null,
-    process.env.GROQ_TEXT_KEY,
-    process.env.GROQ_ANALYZE_KEY,
-    process.env.GROQ_VISION_KEY,
-    process.env.GROQ_API_KEY,
-  ].filter(Boolean) as string[];
+  // Build array of keys (without Set to avoid TS error)
+  const keys: string[] = [];
   
-  const uniqueKeys = [...new Set(keys)];
+  if (isPremium && process.env.GROQ_PREMIUM_KEY) {
+    keys.push(process.env.GROQ_PREMIUM_KEY);
+  }
+  if (process.env.GROQ_TEXT_KEY) {
+    keys.push(process.env.GROQ_TEXT_KEY);
+  }
+  if (process.env.GROQ_ANALYZE_KEY) {
+    keys.push(process.env.GROQ_ANALYZE_KEY);
+  }
+  if (process.env.GROQ_VISION_KEY) {
+    keys.push(process.env.GROQ_VISION_KEY);
+  }
+  if (process.env.GROQ_API_KEY) {
+    keys.push(process.env.GROQ_API_KEY);
+  }
+  
+  // Remove duplicates manually
+  const uniqueKeys: string[] = [];
+  for (const k of keys) {
+    if (!uniqueKeys.includes(k)) {
+      uniqueKeys.push(k);
+    }
+  }
   
   // Try all Groq keys
   for (const key of uniqueKeys) {
@@ -111,7 +127,7 @@ export async function callTextAI(
     }
   }
   
-  // Fallback to OpenRouter (completely free)
+  // Fallback to OpenRouter
   console.log("All Groq keys failed, falling back to OpenRouter...");
   try {
     return await callOpenRouter(messages, maxTokens);
@@ -121,12 +137,12 @@ export async function callTextAI(
   }
 }
 
-// ============ VISION AI (Gemini → Groq Vision → OpenRouter) ============
+// ============ VISION AI (Gemini → Groq Vision) ============
 export async function callVisionAI(
   images: string[],
   prompt: string
 ): Promise<string> {
-  // Try Gemini first (best for scanned docs)
+  // Try Gemini first
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
     try {
@@ -156,12 +172,11 @@ export async function callVisionAI(
   }
   
   // Fallback to Groq Vision
-  const visionKeys = [
-    process.env.GROQ_VISION_KEY,
-    process.env.GROQ_TEXT_KEY,
-    process.env.GROQ_ANALYZE_KEY,
-    process.env.GROQ_API_KEY,
-  ].filter(Boolean) as string[];
+  const visionKeys: string[] = [];
+  if (process.env.GROQ_VISION_KEY) visionKeys.push(process.env.GROQ_VISION_KEY);
+  if (process.env.GROQ_TEXT_KEY) visionKeys.push(process.env.GROQ_TEXT_KEY);
+  if (process.env.GROQ_ANALYZE_KEY) visionKeys.push(process.env.GROQ_ANALYZE_KEY);
+  if (process.env.GROQ_API_KEY) visionKeys.push(process.env.GROQ_API_KEY);
   
   const imageContent = images.map((b64) => ({
     type: "image_url",
@@ -217,9 +232,8 @@ export async function processPDFForQuiz(
       summaries.push(summary);
     } catch (e) {
       console.error(`Failed to summarize chunk ${i + 1}:`, e);
-      summaries.push(chunks[i].slice(0, 2000)); // fallback to truncated chunk
+      summaries.push(chunks[i].slice(0, 2000));
     }
-    // Small delay to avoid rate limits
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   
@@ -227,7 +241,6 @@ export async function processPDFForQuiz(
   const fullContext = summaries.join('\n\n---\n\n');
   console.log(`✅ Combined context: ${fullContext.length} chars`);
   
-  // If still too long, truncate
   return fullContext.length > maxChars ? fullContext.slice(0, maxChars) : fullContext;
 }
 
