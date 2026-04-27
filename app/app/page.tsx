@@ -75,17 +75,26 @@ function HomeInner() {
   const { theme, toggle } = useTheme();
   const isLoggedIn = !!user || isGuest;
 
-  /* handle query params from landing */
+  /* handle query params from landing — runs once on mount, then clears the URL
+     so a refresh doesn't re-trigger the modal */
   useEffect(() => {
     if (loading) return;
     const mode  = searchParams.get("mode");
     const guest = searchParams.get("guest");
+
     if (guest === "1" && !user && !isGuest) {
       continueAsGuest();
     } else if ((mode === "signin" || mode === "signup") && !user && !isGuest) {
       setShowAuth(true);
     }
-  }, [loading, searchParams, user, isGuest, continueAsGuest]);
+
+    // Clear params from URL so refresh doesn't re-open modal
+    if (mode || guest) {
+      const clean = window.location.pathname;
+      window.history.replaceState({}, "", clean);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]); // only run once when auth finishes loading
 
   /* service worker */
   useEffect(() => {
@@ -97,7 +106,7 @@ function HomeInner() {
   const activeTab = TABS.find(t => t.id === tab)!;
 
   return (
-    <>
+    <div style={{ minHeight: "100vh", position: "relative" }}>
       <style>{`
         @keyframes tab-slide-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         @keyframes content-in   { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
@@ -303,8 +312,7 @@ function HomeInner() {
                 whiteSpace: "nowrap",
                 transition: "color 0.2s",
               }}>
-                <span className="hide-mobile">{t.label}</span>
-                <span className="show-mobile">{t.shortLabel}</span>
+                {t.shortLabel}
               </span>
             </button>
           ))}
@@ -420,7 +428,7 @@ function HomeInner() {
       <OnboardingModal />
       <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
       {isLoggedIn && <FeedbackButton />}
-    </>
+    </div>
   );
 }
 
