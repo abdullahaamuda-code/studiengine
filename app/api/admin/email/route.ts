@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       </div>
     </div>`;
 
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+       const res = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -71,13 +71,14 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         sender: {
           name: "Studiengine",
-          email: "technologywiz10@gmail.com",
+          email: "hello@studiengine.com.ng",
         },
         to: emailList.slice(0, 100),
         subject,
         htmlContent,
       }),
     });
+
 
     if (!res.ok) {
       let errText = "";
