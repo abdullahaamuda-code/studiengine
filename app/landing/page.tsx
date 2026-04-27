@@ -321,16 +321,16 @@ export default function LandingPage() {
           <p style={{ textAlign: "center", fontSize: 12, color: "#334155" }}>Free forever · No credit card · Works on any device</p>
 
           {/* Stats row */}
-          <div style={{ display: "flex", gap: 0, justifyContent: "center", marginTop: 52, flexWrap: "wrap" }}>
-            {STATS.map((s, i) => (
-              <div key={i} style={{ padding: "0 28px", borderRight: i < STATS.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none", textAlign: "center" }}>
-                <p style={{ fontSize: "clamp(20px,3vw,28px)", fontWeight: 800, fontFamily: "var(--font-display)", color: "#f1f5f9", margin: "0 0 2px", letterSpacing: "-0.02em" }}>
-                          {s.value}
-                </p>
-                <p style={{ fontSize: 12, color: "#334155", margin: 0 }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
+          <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px 0", justifyContent: "center", marginTop: 52, maxWidth: 600, margin: "52px auto 0" }}>
+  {STATS.map((s, i) => (
+    <div key={i} style={{ textAlign: "center", borderRight: (i === 0 || i === 2) ? "1px solid rgba(255,255,255,0.07)" : "none", paddingRight: (i === 0 || i === 2) ? "20px" : "0", paddingLeft: (i === 1 || i === 3) ? "20px" : "0" }}>
+      <p style={{ fontSize: "clamp(20px,3vw,28px)", fontWeight: 800, fontFamily: "var(--font-display)", color: "#f1f5f9", margin: "0 0 2px", letterSpacing: "-0.02em" }}>
+        {s.value}
+      </p>
+      <p style={{ fontSize: 12, color: "#334155", margin: 0 }}>{s.label}</p>
+    </div>
+  ))}
+</div>
         </section>
 
         {/* ── Hero Mock + Interactive Demo ── */}
