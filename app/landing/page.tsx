@@ -65,9 +65,9 @@ const STEPS = [
 ];
 
 const STATS = [
-  { value: "1,240+", label: "Students studying smarter" },
-  { value: "40+", label: "Questions per session" },
-  { value: "3s", label: "Average generation time" },
+  { value: "90+", label: "Students studying smarter" },
+  { value: "30+", label: "Questions per session" },
+  { value: "7.5s", label: "Average generation time" },
   { value: "100%", label: "From your own material" },
 ];
 
@@ -279,8 +279,7 @@ export default function LandingPage() {
       <div style={{ position: "relative", zIndex: 1 }}>
 
         {/* ── Navbar ── */}
-        <nav className={navScrolled ? "nav-border" : ""} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: navScrolled ? "rgba(8,12,20,0.92)" : "transparent", backdropFilter: navScrolled ? "blur(24px)" : "none", borderBottom: navScrolled ? "1px solid rgba(255,255,255,0.06)" : "none", transition: "all 0.3s ease" }}>
-          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+       <nav className={navScrolled ? "nav-border" : ""} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: navScrolled ? "rgba(8,12,20,0.92)" : "transparent", backdropFilter: navScrolled ? "blur(24px)" : "none", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s ease" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <StudiengineLogo size={30} />
               <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", background: "linear-gradient(135deg,#f1f5f9,#818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
@@ -360,7 +359,7 @@ export default function LandingPage() {
                       <div style={{ width: 28, height: 28, borderRadius: 6, background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>📄</div>
                       <div>
                         <p style={{ fontSize: 11, color: "#e2e8f0", margin: 0, fontWeight: 500 }}>Cell Biology Lecture Note</p>
-                        <p style={{ fontSize: 10, color: "#475569", margin: 0 }}>3 pages · 40 questions generated</p>
+                        <p style={{ fontSize: 10, color: "#475569", margin: 0 }}>3 pages · 30 questions generated</p>
                       </div>
                     </div>
                   </div>
@@ -368,7 +367,7 @@ export default function LandingPage() {
                   <div style={{ marginBottom: 14 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                       <span style={{ fontSize: 10, color: "#64748b" }}>Progress</span>
-                      <span style={{ fontSize: 10, color: "#818cf8", fontWeight: 600 }}>32 / 40</span>
+                      <span style={{ fontSize: 10, color: "#818cf8", fontWeight: 600 }}>22 / 30</span>
                     </div>
                     <div style={{ height: 3, background: "rgba(255,255,255,0.06)", borderRadius: 99 }}>
                       <div style={{ height: "100%", width: "80%", borderRadius: 99, background: "linear-gradient(90deg,#6366f1,#38bdf8)", boxShadow: "0 0 8px rgba(99,102,241,0.5)" }} />
@@ -376,7 +375,7 @@ export default function LandingPage() {
                   </div>
                   {/* Question */}
                   <div style={{ marginBottom: 10 }}>
-                    <p style={{ fontSize: 11, color: "#475569", marginBottom: 6, fontWeight: 500 }}>Q17 of 40</p>
+                    <p style={{ fontSize: 11, color: "#475569", marginBottom: 6, fontWeight: 500 }}>Q17 of 30</p>
                     <p style={{ fontSize: 12.5, color: "#e2e8f0", marginBottom: 10, lineHeight: 1.55 }}>Which of the following best describes osmosis?</p>
                     {[
                       { l: "A", t: "Movement of water through a semi-permeable membrane", correct: true },
@@ -514,7 +513,7 @@ export default function LandingPage() {
                 Ready to study smarter?
               </h2>
               <p style={{ fontSize: 15, color: "#475569", marginBottom: 32, lineHeight: 1.7 }}>
-                Free to start. No credit card. Join 1,240+ students already using Studiengine.
+                Free to start. No credit card. Join 90+ students already using Studiengine.
               </p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                 <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "15px 36px", borderRadius: 12, fontSize: 15, letterSpacing: "-0.01em" }}>Create Free Account →</button>
@@ -530,7 +529,7 @@ export default function LandingPage() {
             <StudiengineLogo size={22} />
             <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 600, fontFamily: "var(--font-display)" }}>Studiengine</span>
           </div>
-          <p style={{ fontSize: 12, color: "#1e293b", margin: 0 }}>© 2025 Studiengine · Built for African students 🇳🇬</p>
+          <p style={{ fontSize: 12, color: "#1e293b", margin: 0 }}>© 2026 Studiengine · Built for African students 🇳🇬</p>
           <div style={{ display: "flex", gap: 20 }}>
             {["Privacy", "Terms", "Contact"].map(l => (
               <span key={l} style={{ fontSize: 12, color: "#1e293b", cursor: "pointer" }} onMouseEnter={e => (e.currentTarget.style.color = "#818cf8")} onMouseLeave={e => (e.currentTarget.style.color = "#1e293b")}>{l}</span>
