@@ -290,7 +290,7 @@ export default function LandingPage() {
       <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13 }}>Get Started →</button>
     </div>
   </div>
-</nav>>
+</nav>
 
         {/* ── Hero ── */}
         <section style={{ paddingTop: 130, paddingBottom: 80, paddingLeft: 24, paddingRight: 24, maxWidth: 1100, margin: "0 auto" }}>
