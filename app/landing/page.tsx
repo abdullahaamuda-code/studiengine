@@ -279,17 +279,18 @@ export default function LandingPage() {
       <div style={{ position: "relative", zIndex: 1 }}>
 
         {/* ── Navbar ── */}
-       <nav className={navScrolled ? "nav-border" : ""} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: navScrolled ? "rgba(8,12,20,0.92)" : "transparent", backdropFilter: navScrolled ? "blur(24px)" : "none", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s ease" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <StudiengineLogo size={30} />
-              <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", background: "linear-gradient(135deg,#f1f5f9,#818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button onClick={() => router.push("/app?mode=signin")} className="btn-ghost-hero" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13 }}>Sign In</button>
-              <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13 }}>Get Started →</button>
-            </div>
-          </div>
-        </nav>
+      <nav className={navScrolled ? "nav-border" : ""} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: navScrolled ? "rgba(8,12,20,0.92)" : "transparent", backdropFilter: navScrolled ? "blur(24px)" : "none", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s ease" }}>
+  <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <StudiengineLogo size={30} />
+      <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", background: "linear-gradient(135deg,#f1f5f9,#818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
+    </div>
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <button onClick={() => router.push("/app?mode=signin")} className="btn-ghost-hero" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13 }}>Sign In</button>
+      <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13 }}>Get Started →</button>
+    </div>
+  </div>
+</nav>
 
         {/* ── Hero ── */}
         <section style={{ paddingTop: 130, paddingBottom: 80, paddingLeft: 24, paddingRight: 24, maxWidth: 1100, margin: "0 auto" }}>
