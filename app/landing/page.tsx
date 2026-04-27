@@ -279,7 +279,7 @@ export default function LandingPage() {
       <div style={{ position: "relative", zIndex: 1 }}>
 
         {/* ── Navbar ── */}
-      <nav className={navScrolled ? "nav-border" : ""} style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: navScrolled ? "rgba(8,12,20,0.92)" : "transparent", backdropFilter: navScrolled ? "blur(24px)" : "none", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s ease" }}>
+     <nav className="nav-border" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: navScrolled ? "rgba(8,12,20,0.92)" : "transparent", backdropFilter: navScrolled ? "blur(24px)" : "none", borderBottom: "1px solid rgba(255,255,255,0.06)", transition: "all 0.3s ease" }}>
   <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <StudiengineLogo size={30} />
@@ -290,7 +290,7 @@ export default function LandingPage() {
       <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13 }}>Get Started →</button>
     </div>
   </div>
-</nav>
+</nav>>
 
         {/* ── Hero ── */}
         <section style={{ paddingTop: 130, paddingBottom: 80, paddingLeft: 24, paddingRight: 24, maxWidth: 1100, margin: "0 auto" }}>
@@ -325,7 +325,7 @@ export default function LandingPage() {
             {STATS.map((s, i) => (
               <div key={i} style={{ padding: "0 28px", borderRight: i < STATS.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none", textAlign: "center" }}>
                 <p style={{ fontSize: "clamp(20px,3vw,28px)", fontWeight: 800, fontFamily: "var(--font-display)", color: "#f1f5f9", margin: "0 0 2px", letterSpacing: "-0.02em" }}>
-                  {i === 0 ? `${count.toLocaleString()}+` : s.value}
+                          {s.value}
                 </p>
                 <p style={{ fontSize: 12, color: "#334155", margin: 0 }}>{s.label}</p>
               </div>
@@ -345,7 +345,7 @@ export default function LandingPage() {
                     <div style={{ display: "flex", gap: 5 }}>
                       {["#ff5f57","#febc2e","#28c840"].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: "50%", background: c }} />)}
                     </div>
-                    <span style={{ fontSize: 11, color: "#475569" }}>studiengine.app</span>
+                    <span style={{ fontSize: 11, color: "#475569" }}>studiengine.com.ng</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <div className="glow-dot" />
