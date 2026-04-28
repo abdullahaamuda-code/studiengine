@@ -310,8 +310,8 @@ export default function AuthModal({ open, onClose, initialMode = "signup" }: Pro
               <Divider />
 
               <button onClick={handleGuest} style={{ width: "100%", padding: "12px 0", borderRadius: 10, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: 500, transition: "all 0.2s" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.14)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonButtonElement).style.background = "rgba(99,102,241,0.08)"; }}>
+  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.14)"; }}
+  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.08)"; }}>
                 Continue as Guest <span style={{ fontSize: 11, color: "#6366f1", marginLeft: 4 }}>(2 CBTs/day)</span>
               </button>
             </div>
