@@ -5,13 +5,11 @@ import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import Navbar from "@/components/Navbar";
 import Calculator from "@/components/Calculator";
-import OnboardingModal from "@/components/OnboardingModal";
 import InstallPrompt from "@/components/InstallPrompt";
 import FeedbackButton from "@/components/FeedbackButton";
 import AuthModal from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useRef } from "react";
 
 const NotesTab      = dynamic(() => import("@/components/NotesTab"),      { ssr: false });
 const PQAnalyzerTab = dynamic(() => import("@/components/PQAnalyzerTab"), { ssr: false });
@@ -72,14 +70,11 @@ function HomeInner() {
   const [showCalc, setShowCalc]     = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const [showAuth, setShowAuth]     = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const { user, isGuest, loading, continueAsGuest } = useAuth();
   const searchParams = useSearchParams();
   const { theme, toggle } = useTheme();
   const isLoggedIn = !!user || isGuest;
-
-  const hasRunOnboarding = useRef(false);
 
   /* handle query params from landing — runs once on mount, then clears the URL
      so a refresh doesn't re-trigger the modal */
@@ -102,20 +97,6 @@ function HomeInner() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]); // only run once when auth finishes loading
-
-  /* when a real user logs in for the first time, open onboarding (if not already onboarded) */
-  useEffect(() => {
-    if (!loading && user && !hasRunOnboarding.current) {
-      hasRunOnboarding.current = true;
-
-      if (typeof window !== "undefined") {
-        const onboarded = localStorage.getItem("studiengine_onboarded_v2");
-        if (!onboarded) {
-          setShowOnboarding(true);
-        }
-      }
-    }
-  }, [user, loading]);
 
   /* service worker */
   useEffect(() => {
@@ -445,7 +426,6 @@ function HomeInner() {
 
       {/* ── Modals ── */}
       <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
-      <OnboardingModal open={showOnboarding} onClose={() => setShowOnboarding(false)} />
       <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
       {isLoggedIn && <FeedbackButton />}
     </div>
