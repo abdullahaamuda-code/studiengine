@@ -219,7 +219,7 @@ export default function AuthModal({ open, onClose, initialMode = "signup" }: Pro
             onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLButtonElement).style.color = "#475569"; }}
           >×</button>
 
-          <Logo />
+          <StudiengineLogo size={36} />
 
           {/* ── Header ── */}
           <div style={{ textAlign: "center", marginBottom: 22 }}>
