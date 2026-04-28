@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 interface Props {
   open: boolean;
@@ -129,6 +130,7 @@ const PrimaryBtn = ({ onClick, disabled, loading, children }: { onClick: () => v
 );
 
 export default function AuthModal({ open, onClose, initialMode = "signup" }: Props) {
+  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup" | "forgot">(initialMode === "signin" ? "signin" : "signup");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -162,6 +164,7 @@ export default function AuthModal({ open, onClose, initialMode = "signup" }: Pro
       if (mode === "signin")  await signIn(email, password);
       if (mode === "signup")  await signUp(email, password);
       onClose();
+      router.push("/app");
     } catch (e: any) {
       setError(
         e.code === "auth/user-not-found"       ? "No account found with that email." :
@@ -308,7 +311,7 @@ export default function AuthModal({ open, onClose, initialMode = "signup" }: Pro
 
               <button onClick={handleGuest} style={{ width: "100%", padding: "12px 0", borderRadius: 10, background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "var(--font-body)", fontWeight: 500, transition: "all 0.2s" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.14)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.08)"; }}>
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonButtonElement).style.background = "rgba(99,102,241,0.08)"; }}>
                 Continue as Guest <span style={{ fontSize: 11, color: "#6366f1", marginLeft: 4 }}>(2 CBTs/day)</span>
               </button>
             </div>
