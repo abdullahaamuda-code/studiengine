@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import StudiengineLogo from "@/components/StudiengineLogo";
 
 interface Props {
   open: boolean;
@@ -11,32 +12,6 @@ interface Props {
 }
 
 /* ── Logo ── */
-function Logo() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 28 }}>
-      <svg width="30" height="30" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 10, display: "block", flexShrink: 0 }}>
-        <defs>
-          <linearGradient id="ab2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#0d0f1a" /><stop offset="100%" stopColor="#111827" />
-          </linearGradient>
-          <linearGradient id="as2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#818cf8" /><stop offset="100%" stopColor="#38bdf8" />
-          </linearGradient>
-        </defs>
-        <rect width="80" height="80" rx="18" fill="url(#ab2)" />
-        <rect x="30" y="12" width="34" height="7" rx="3.5" fill="#1e2440" opacity="0.9" />
-        <rect x="14" y="23" width="50" height="7" rx="3.5" fill="#1e2440" opacity="0.75" />
-        <rect x="14" y="34" width="52" height="7" rx="3.5" fill="#1e2440" opacity="0.6" />
-        <rect x="14" y="45" width="50" height="7" rx="3.5" fill="#1e2440" opacity="0.45" />
-        <rect x="14" y="56" width="34" height="7" rx="3.5" fill="#1e2440" opacity="0.3" />
-        <path d="M52 20 C52 20 52 13 40 13 C28 13 24 20 24 27 C24 34 30 37 40 40 C50 43 56 46 56 53 C56 60 52 67 40 67 C28 67 24 60 24 60" fill="none" stroke="url(#as2)" strokeWidth="6" strokeLinecap="round" />
-      </svg>
-      <span style={{ fontSize: 18, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", background: "linear-gradient(135deg,#f1f5f9,#818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-        Studiengine
-      </span>
-    </div>
-  );
-}
 
 /* ── Input — defined outside to prevent remount ── */
 const Input = ({ type, placeholder, value, onChange }: {
