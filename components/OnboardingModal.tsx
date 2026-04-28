@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 
 const STORAGE_KEY = "studiengine_onboarded_v2";
 
@@ -39,19 +39,30 @@ function Logo() {
   );
 }
 
-export default function OnboardingModal() {
-  const [show, setShow] = useState(false);
+interface OnboardingModalProps {
+  open: boolean;
+  onClose: () => void;
+}
 
+export default function OnboardingModal({ open, onClose }: OnboardingModalProps) {
+  // When we ever open this modal, if the user was never onboarded, mark as onboarded
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) setShow(true);
-  }, []);
+    if (open && typeof window !== "undefined") {
+      if (!localStorage.getItem(STORAGE_KEY)) {
+        localStorage.setItem(STORAGE_KEY, "1");
+      }
+    }
+  }, [open]);
 
   function dismiss() {
-    localStorage.setItem(STORAGE_KEY, "1");
-    setShow(false);
+    // make sure it's persisted
+    try {
+      localStorage.setItem(STORAGE_KEY, "1");
+    } catch {}
+    onClose();
   }
 
-  if (!show) return null;
+  if (!open) return null;
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:100, background:"rgba(4,6,12,0.88)", backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
@@ -64,9 +75,14 @@ export default function OnboardingModal() {
         {/* Sticky header */}
         <div style={{ position:"sticky", top:0, zIndex:10, background:"rgba(10,13,22,0.97)", backdropFilter:"blur(16px)", borderBottom:"1px solid rgba(255,255,255,0.06)", padding:"16px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", borderRadius:"22px 22px 0 0" }}>
           <Logo />
-          <button onClick={dismiss} style={{ width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", color:"#475569", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}
+          <button
+            onClick={dismiss}
+            style={{ width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", color:"#475569", fontSize:16, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}
             onMouseEnter={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.1)";}}
-            onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.05)";}}>×</button>
+            onMouseLeave={e=>{(e.currentTarget as HTMLButtonElement).style.background="rgba(255,255,255,0.05)";}}
+          >
+            ×
+          </button>
         </div>
 
         {/* Body */}
