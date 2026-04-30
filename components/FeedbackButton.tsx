@@ -110,7 +110,7 @@ export default function FeedbackButton() {
             />
 
             {/* Submit */}
-            <button className="fb-submit" onClick={submit} disabled={submitting || rating === 0} className="btn-primary" style={{ width:"100%", padding:"13px 0", borderRadius:11, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 4px 20px rgba(99,102,241,0.3)", transition:"all 0.2s", opacity: rating === 0 ? 0.4 : 1 }}>
+            <button className="fb-submit btn-primary" onClick={submit} disabled={submitting || rating === 0} style={{ width:"100%", padding:"13px 0", borderRadius:11, fontSize:14, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", gap:8, boxShadow:"0 4px 20px rgba(99,102,241,0.3)", transition:"all 0.2s", opacity: rating === 0 ? 0.4 : 1 }}>
               {submitting ? <><span style={{ width:14, height:14, border:"2px solid rgba(255,255,255,0.2)", borderTopColor:"#fff", borderRadius:"50%", animation:"auth-spin 0.65s linear infinite", display:"inline-block" }} /> Submitting…</> : "Submit Feedback →"}
             </button>
           </div>
