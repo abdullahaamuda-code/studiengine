@@ -7,7 +7,6 @@ import Navbar from "@/components/Navbar";
 import Calculator from "@/components/Calculator";
 import InstallPrompt from "@/components/InstallPrompt";
 import FeedbackButton from "@/components/FeedbackButton";
-import AuthModal from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -66,10 +65,9 @@ const EXAM_TAGS = ["JAMB", "WAEC", "NECO", "GCE", "POST-UTME", "University"];
    INNER COMPONENT
 ───────────────────────────────────────────── */
 function HomeInner() {
-  const [tab, setTab]               = useState("notes");
-  const [showCalc, setShowCalc]     = useState(false);
+  const [tab, setTab] = useState("notes");
+  const [showCalc, setShowCalc] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
-  const [showAuth, setShowAuth]     = useState(false);
 
   const { user, isGuest, loading, continueAsGuest } = useAuth();
   const searchParams = useSearchParams();
@@ -81,16 +79,13 @@ function HomeInner() {
   useEffect(() => {
     if (loading) return;
 
-    const mode  = searchParams.get("mode");
+    const mode = searchParams.get("mode");
     const guest = searchParams.get("guest");
 
     if (guest === "1" && !user && !isGuest) {
       continueAsGuest();
-    } else if ((mode === "signin" || mode === "signup") && !user && !isGuest) {
-      setShowAuth(true);
     }
-
-    // Clear params from URL so refresh doesn't re-open modal
+    // Clear params from URL so refresh doesn't re-open anything
     if (mode || guest) {
       const clean = window.location.pathname;
       window.history.replaceState({}, "", clean);
@@ -244,27 +239,55 @@ function HomeInner() {
       <div className="orb orb-1" />
       <div className="orb orb-2" />
       <div className="orb orb-3" />
-      <div style={{
-        position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none",
-        backgroundImage: "linear-gradient(rgba(99,102,241,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.025) 1px, transparent 1px)",
-        backgroundSize: "60px 60px",
-      }} />
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 0,
+          pointerEvents: "none",
+          backgroundImage:
+            "linear-gradient(rgba(99,102,241,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.025) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
 
       {/* ── Navbar ── */}
-      <Navbar defaultAuthMode={searchParams.get("mode") as "signin" | "signup" | undefined} />
+      <Navbar />
 
       {/* ── Theme toggle ── */}
-      <button className="theme-toggle" onClick={toggle} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
+      <button
+        className="theme-toggle"
+        onClick={toggle}
+        title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+      >
         {theme === "dark" ? "☀️" : "🌙"}
       </button>
 
       {/* ── Main content ── */}
-      <div style={{ position: "relative", zIndex: 2, maxWidth: 580, margin: "0 auto", padding: "24px 16px 80px" }}>
-
+      <div
+        style={{
+          position: "relative",
+          zIndex: 2,
+          maxWidth: 580,
+          margin: "0 auto",
+          padding: "24px 16px 80px",
+        }}
+      >
         {/* ── Exam tags row ── */}
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap", marginBottom: 22, animation: "content-in 0.4s ease" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginBottom: 22,
+            animation: "content-in 0.4s ease",
+          }}
+        >
           {EXAM_TAGS.map(tag => (
-            <span key={tag} className="exam-tag">{tag}</span>
+            <span key={tag} className="exam-tag">
+              {tag}
+            </span>
           ))}
         </div>
 
@@ -272,47 +295,83 @@ function HomeInner() {
         {!isLoggedIn && !loading && (
           <div className="sign-in-banner">
             <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", margin: "0 0 2px" }}>
+              <p
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "var(--text-primary)",
+                  margin: "0 0 2px",
+                }}
+              >
                 Sign in to get started
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-muted)",
+                  margin: 0,
+                }}
+              >
                 Free account · No credit card needed
               </p>
             </div>
-            <button onClick={() => setShowAuth(true)} className="btn-primary" style={{ padding: "8px 18px", borderRadius: 9, fontSize: 13, whiteSpace: "nowrap", flexShrink: 0 }}>
+            {/* Commented out button since you removed AuthModal; you can remove this div entirely if you prefer */}
+            <button
+              onClick={() => {}}
+              className="btn-primary"
+              style={{
+                padding: "8px 18px",
+                borderRadius: 9,
+                fontSize: 13,
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
               Get Started →
             </button>
           </div>
         )}
 
         {/* ── Tab switcher ── */}
-        <div style={{
-          display: "flex", gap: 4, padding: 5,
-          background: "rgba(255,255,255,0.025)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          borderRadius: 16,
-          marginBottom: 16,
-          animation: "content-in 0.45s ease",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 4,
+            padding: 5,
+            background: "rgba(255,255,255,0.025)",
+            backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.07)",
+            borderRadius: 16,
+            marginBottom: 16,
+            animation: "content-in 0.45s ease",
+          }}
+        >
           {TABS.map(t => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`tab-btn${tab === t.id ? " tab-btn-active" : ""}`}
             >
-              <span style={{ color: tab === t.id ? "#818cf8" : "var(--text-muted)", display: "flex", transition: "color 0.2s" }}>
+              <span
+                style={{
+                  color: tab === t.id ? "#818cf8" : "var(--text-muted)",
+                  display: "flex",
+                  transition: "color 0.2s",
+                }}
+              >
                 {t.icon}
               </span>
-              <span style={{
-                fontSize: 10,
-                fontWeight: tab === t.id ? 700 : 500,
-                color: tab === t.id ? "#c7d2fe" : "var(--text-muted)",
-                letterSpacing: "0.01em",
-                whiteSpace: "nowrap",
-                transition: "color 0.2s",
-              }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: tab === t.id ? 700 : 500,
+                  color: tab === t.id ? "#c7d2fe" : "var(--text-muted)",
+                  letterSpacing: "0.01em",
+                  whiteSpace: "nowrap",
+                  transition: "color 0.2s",
+                }}
+              >
                 {t.shortLabel}
               </span>
             </button>
@@ -320,16 +379,18 @@ function HomeInner() {
         </div>
 
         {/* ── Tab description ── */}
-        <p style={{
-          fontSize: 12.5,
-          color: "var(--text-muted)",
-          textAlign: "center",
-          marginBottom: 18,
-          lineHeight: 1.6,
-          padding: "0 8px",
-          animation: "tab-slide-in 0.3s ease",
-          minHeight: 20,
-        }}>
+        <p
+          style={{
+            fontSize: 12.5,
+            color: "var(--text-muted)",
+            textAlign: "center",
+            marginBottom: 18,
+            lineHeight: 1.6,
+            padding: "0 8px",
+            animation: "tab-slide-in 0.3s ease",
+            minHeight: 20,
+          }}
+        >
           {activeTab.desc}
         </p>
 
@@ -344,52 +405,138 @@ function HomeInner() {
           ) : (
             <div className="empty-state">
               {/* Icon */}
-              <div style={{
-                width: 60, height: 60, borderRadius: 18,
-                background: "rgba(99,102,241,0.1)",
-                border: "1px solid rgba(99,102,241,0.2)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 26, marginBottom: 18,
-              }}>🎓</div>
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 18,
+                  background: "rgba(99,102,241,0.1)",
+                  border: "1px solid rgba(99,102,241,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 26,
+                  marginBottom: 18,
+                }}
+              >
+                🎓
+              </div>
 
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", margin: "0 0 8px", fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: "var(--text-primary)",
+                  margin: "0 0 8px",
+                  fontFamily: "var(--font-display)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
                 Ready to ace your exams?
               </h3>
-              <p style={{ fontSize: 13.5, color: "var(--text-muted)", margin: "0 0 24px", lineHeight: 1.65, maxWidth: 320 }}>
+              <p
+                style={{
+                  fontSize: 13.5,
+                  color: "var(--text-muted)",
+                  margin: "0 0 24px",
+                  lineHeight: 1.65,
+                  maxWidth: 320,
+                }}
+              >
                 Create a free account or continue as a guest to start generating CBT practice questions from your own material.
               </p>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%", maxWidth: 280 }}>
-                <button onClick={() => setShowAuth(true)} className="btn-primary" style={{ padding: "13px 0", borderRadius: 11, fontSize: 14, width: "100%" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  width: "100%",
+                  maxWidth: 280,
+                }}
+              >
+                <button
+                  onClick={() => {}}
+                  className="btn-primary"
+                  style={{
+                    padding: "13px 0",
+                    borderRadius: 11,
+                    fontSize: 14,
+                    width: "100%",
+                  }}
+                >
                   Get Started — It's Free
                 </button>
                 <button
                   onClick={() => { if (continueAsGuest) continueAsGuest(); }}
                   style={{
-                    width: "100%", padding: "12px 0", borderRadius: 11,
+                    width: "100%",
+                    padding: "12px 0",
+                    borderRadius: 11,
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.08)",
-                    color: "var(--text-muted)", fontSize: 13,
-                    cursor: "pointer", fontFamily: "var(--font-body)",
+                    color: "var(--text-muted)",
+                    fontSize: 13,
+                    cursor: "pointer",
+                    fontFamily: "var(--font-body)",
                     transition: "all 0.2s",
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.03)"; }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.03)";
+                  }}
                 >
                   Continue as Guest
                 </button>
               </div>
 
               {/* Features mini-list */}
-              <div style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 8, width: "100%", maxWidth: 300 }}>
+              <div
+                style={{
+                  marginTop: 28,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                  width: "100%",
+                  maxWidth: 300,
+                }}
+              >
                 {[
                   { icon: "✦", text: "Notes → instant CBT questions" },
                   { icon: "◈", text: "PQ topic analytics & patterns" },
                   { icon: "⚡", text: "AI explanations for every answer" },
                 ].map(f => (
-                  <div key={f.text} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 9 }}>
-                    <span style={{ fontSize: 12, color: "#818cf8", flexShrink: 0 }}>{f.icon}</span>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{f.text}</span>
+                  <div
+                    key={f.text}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 12px",
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid rgba(255,255,255,0.05)",
+                      borderRadius: 9,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "#818cf8",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {f.icon}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        color: "var(--text-muted)",
+                      }}
+                    >
+                      {f.text}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -398,7 +545,15 @@ function HomeInner() {
         </div>
 
         {/* ── Footer ── */}
-        <p style={{ textAlign: "center", marginTop: 28, fontSize: 11, color: "var(--text-muted)", opacity: 0.5 }}>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: 28,
+            fontSize: 11,
+            color: "var(--text-muted)",
+            opacity: 0.5,
+          }}
+        >
           © 2026 Studiengine · Built for African students 🇳🇬
         </p>
       </div>
@@ -424,8 +579,7 @@ function HomeInner() {
 
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
 
-      {/* ── Modals ── */}
-      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+      {/* ── Install prompt only ── */}
       <InstallPrompt show={showInstall} onDismiss={() => setShowInstall(false)} />
       {isLoggedIn && <FeedbackButton />}
     </div>
