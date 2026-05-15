@@ -4,24 +4,27 @@ import { useEffect, useState, useRef } from "react";
 
 function StudiengineLogo({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: 10, display: "block", flexShrink: 0 }}>
+    <svg width={size} height={size} viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" style={{ borderRadius: size * 0.22, display: "block", flexShrink: 0 }}>
       <defs>
-        <linearGradient id="lb" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0d0f1a" />
-          <stop offset="100%" stopColor="#111827" />
+        <linearGradient id="abg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0d0f1a"/><stop offset="100%" stopColor="#111827"/>
         </linearGradient>
-        <linearGradient id="ls" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#818cf8" />
-          <stop offset="100%" stopColor="#38bdf8" />
+        <linearGradient id="astr" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#818cf8"/><stop offset="60%" stopColor="#a78bfa"/><stop offset="100%" stopColor="#38bdf8"/>
+        </linearGradient>
+        <linearGradient id="aln" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#1e2440"/><stop offset="100%" stopColor="#252b50"/>
         </linearGradient>
       </defs>
-      <rect width="80" height="80" rx="18" fill="url(#lb)" />
-      <rect x="30" y="12" width="34" height="7" rx="3.5" fill="#1e2440" opacity="0.9" />
-      <rect x="14" y="23" width="50" height="7" rx="3.5" fill="#1e2440" opacity="0.75" />
-      <rect x="14" y="34" width="52" height="7" rx="3.5" fill="#1e2440" opacity="0.6" />
-      <rect x="14" y="45" width="50" height="7" rx="3.5" fill="#1e2440" opacity="0.45" />
-      <rect x="14" y="56" width="34" height="7" rx="3.5" fill="#1e2440" opacity="0.3" />
-      <path d="M52 20 C52 20 52 13 40 13 C28 13 24 20 24 27 C24 34 30 37 40 40 C50 43 56 46 56 53 C56 60 52 67 40 67 C28 67 24 60 24 60" fill="none" stroke="url(#ls)" strokeWidth="6" strokeLinecap="round" />
+      <rect width="512" height="512" rx="112" fill="url(#abg)"/>
+      <rect x="1" y="1" width="510" height="510" rx="111" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="2"/>
+      <rect x="160" y="96"  width="260" height="52" rx="26" fill="url(#aln)" opacity="0.9"/>
+      <rect x="96"  y="166" width="320" height="52" rx="26" fill="url(#aln)" opacity="0.78"/>
+      <rect x="96"  y="236" width="330" height="52" rx="26" fill="url(#aln)" opacity="0.62"/>
+      <rect x="96"  y="306" width="320" height="52" rx="26" fill="url(#aln)" opacity="0.46"/>
+      <rect x="96"  y="376" width="220" height="52" rx="26" fill="url(#aln)" opacity="0.30"/>
+      <path d="M330 130 C330 130 330 86 256 86 C182 86 158 130 158 174 C158 218 194 238 256 256 C318 274 354 294 354 338 C354 382 330 426 256 426 C182 426 158 382 158 382"
+        fill="none" stroke="url(#astr)" strokeWidth="42" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -286,8 +289,8 @@ export default function LandingPage() {
       <span style={{ fontSize: 17, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", background: "linear-gradient(135deg,#f1f5f9,#818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Studiengine</span>
     </div>
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <button onClick={() => router.push("/app?mode=signin")} className="btn-ghost-hero" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13 }}>Sign In</button>
-      <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13 }}>Get Started →</button>
+      <button onClick={() => router.push("/auth?mode=signin")} className="btn-ghost-hero" style={{ padding: "8px 16px", borderRadius: 8, fontSize: 13 }}>Sign In</button>
+      <button onClick={() => router.push("/auth?mode=signup")} className="btn-cta" style={{ padding: "8px 18px", borderRadius: 8, fontSize: 13 }}>Get Started →</button>
     </div>
   </div>
 </nav>
@@ -315,8 +318,8 @@ export default function LandingPage() {
 
           {/* CTAs */}
           <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginBottom: 16 }}>
-            <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "14px 32px", borderRadius: 12, fontSize: 15, letterSpacing: "-0.01em" }}>Start for Free →</button>
-            <button onClick={() => router.push("/?guest=1")} className="btn-ghost-hero" style={{ padding: "14px 26px", borderRadius: 12, fontSize: 14 }}>Try as guest</button>
+            <button onClick={() => router.push("/auth?mode=signup")} className="btn-cta" style={{ padding: "14px 32px", borderRadius: 12, fontSize: 15, letterSpacing: "-0.01em" }}>Start for Free →</button>
+            <button onClick={() => router.push("/app?guest=1")} className="btn-ghost-hero" style={{ padding: "14px 26px", borderRadius: 12, fontSize: 14 }}>Try as guest</button>
           </div>
           <p style={{ textAlign: "center", fontSize: 12, color: "#334155" }}>Free forever · No credit card · Works on any device</p>
 
@@ -517,7 +520,7 @@ export default function LandingPage() {
                 Free to start. No credit card. Join 90+ students already using Studiengine.
               </p>
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                <button onClick={() => router.push("/app?mode=signup")} className="btn-cta" style={{ padding: "15px 36px", borderRadius: 12, fontSize: 15, letterSpacing: "-0.01em" }}>Create Free Account →</button>
+                <button onClick={() => router.push("/auth?mode=signup")} className="btn-cta" style={{ padding: "15px 36px", borderRadius: 12, fontSize: 15, letterSpacing: "-0.01em" }}>Create Free Account →</button>
                 <button onClick={() => router.push("/?guest=1")} className="btn-ghost-hero" style={{ padding: "15px 26px", borderRadius: 12, fontSize: 14 }}>Try as guest</button>
               </div>
             </div>
