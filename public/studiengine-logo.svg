@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d0f1a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="60%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="lines" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#1e2440"/>
+      <stop offset="100%" stop-color="#252b50"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Subtle inner border -->
+  <rect x="1" y="1" width="510" height="510" rx="111" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>
+  <!-- Book lines (pages) -->
+  <rect x="160" y="96"  width="260" height="52" rx="26" fill="url(#lines)" opacity="0.9"/>
+  <rect x="96"  y="166" width="320" height="52" rx="26" fill="url(#lines)" opacity="0.78"/>
+  <rect x="96"  y="236" width="330" height="52" rx="26" fill="url(#lines)" opacity="0.62"/>
+  <rect x="96"  y="306" width="320" height="52" rx="26" fill="url(#lines)" opacity="0.46"/>
+  <rect x="96"  y="376" width="220" height="52" rx="26" fill="url(#lines)" opacity="0.30"/>
+  <!-- S stroke -->
+  <path d="M330 130 C330 130 330 86 256 86 C182 86 158 130 158 174 C158 218 194 238 256 256 C318 274 354 294 354 338 C354 382 330 426 256 426 C182 426 158 382 158 382"
+    fill="none" stroke="url(#stroke)" stroke-width="42" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
