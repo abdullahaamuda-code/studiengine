@@ -627,3 +627,22 @@ input, textarea, select { font-size: 16px !important; }
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 }
+/* Mobile: show floating crown, hide corner crown */
+@media (max-width: 640px) {
+  .avatar-crown-floating {
+    display: inline;
+  }
+  .avatar-crown-corner {
+    display: none;
+  }
+}
+
+/* Desktop: show corner crown, hide floating crown */
+@media (min-width: 641px) {
+  .avatar-crown-floating {
+    display: none;
+  }
+  .avatar-crown-corner {
+    display: inline;
+  }
+}
