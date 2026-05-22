@@ -1,5 +1,5 @@
 {
-  "name": "prepwise",
+  "name": "Studiengine",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,24 +8,27 @@
     "start": "next start"
   },
   "dependencies": {
+    "browser-image-compression": "^2.0.2",
+    "firebase": "^10.12.0",
+    "firebase-admin": "^13.10.0",
+    "groq-sdk": "^0.3.3",
+    "katex": "^0.16.11",
     "next": "14.2.5",
+    "pdfjs-dist": "^4.4.168",
     "react": "^18",
     "react-dom": "^18",
-    "groq-sdk": "^0.3.3",
-    "pdfjs-dist": "^4.4.168",
-    "katex": "^0.16.11",
-    "firebase": "^10.12.0",
-    "browser-image-compression": "^2.0.2",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "resend": "^3.4.0"
   },
   "devDependencies": {
+    "@types/katex": "^0.16.7",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
-    "typescript": "^5",
-    "tailwindcss": "^3.4.1",
-    "postcss": "^8",
     "autoprefixer": "^10",
-    "@types/katex": "^0.16.7"
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
   }
 }
