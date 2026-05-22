@@ -1,5 +1,14 @@
-// We use the client Firebase SDK for admin operations
-// This avoids firebase-admin package bundling issues with Next.js
-// All admin routes are protected by x-admin-uid header check
+import admin from "firebase-admin";
 
-export { db } from "./firebase";
+export function getAdminDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId:   process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      }),
+    });
+  }
+  return admin.firestore();
+}
