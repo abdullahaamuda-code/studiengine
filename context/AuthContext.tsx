@@ -13,6 +13,7 @@ interface AuthContextType {
   user: User | null;
   isGuest: boolean;
   isPremium: boolean;
+  isApprovedAmbassador: boolean;
   userId: string;
   loading: boolean;
   signIn:  (email: string, pass: string) => Promise<void>;
@@ -23,17 +24,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/* ── generate a unique referral code for new users ── */
 function generateReferralCode(uid: string): string {
   return "STU-" + uid.slice(0, 6).toUpperCase();
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser]           = useState<User | null>(null);
-  const [isGuest, setIsGuest]     = useState(false);
-  const [isPremium, setIsPremium] = useState(false);
-  const [guestId, setGuestId]     = useState("");
-  const [loading, setLoading]     = useState(true);
+  const [user, setUser]                         = useState<User | null>(null);
+  const [isGuest, setIsGuest]                   = useState(false);
+  const [isPremium, setIsPremium]               = useState(false);
+  const [isApprovedAmbassador, setIsApprovedAmbassador] = useState(false);
+  const [guestId, setGuestId]                   = useState("");
+  const [loading, setLoading]                   = useState(true);
 
   /* ── fingerprint / guest ID ── */
   useEffect(() => {
@@ -78,13 +79,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             const data = snap.data();
             setIsPremium(data?.isPremium === true);
-            // backfill missing fields
             const updates: Record<string, any> = {};
-            if (!data?.email && u.email)        updates.email        = u.email;
-            if (!data?.referralCode)            updates.referralCode = generateReferralCode(u.uid);
-            if (Object.keys(updates).length)    await setDoc(ref, updates, { merge: true });
+            if (!data?.email && u.email)     updates.email        = u.email;
+            if (!data?.referralCode)         updates.referralCode = generateReferralCode(u.uid);
+            if (Object.keys(updates).length) await setDoc(ref, updates, { merge: true });
           }
-        } catch { setIsPremium(false); }
+
+          /* ── check ambassador status ── */
+          try {
+            const ambSnap = await getDoc(doc(db, "ambassadors", u.uid));
+            setIsApprovedAmbassador(ambSnap.exists() && ambSnap.data()?.approved === true);
+          } catch {
+            setIsApprovedAmbassador(false);
+          }
+
+        } catch { setIsPremium(false); setIsApprovedAmbassador(false); }
+      } else {
+        setIsApprovedAmbassador(false);
       }
       setLoading(false);
     });
@@ -93,20 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const userId = user ? user.uid : (isGuest ? guestId : "");
 
-  /* ── sign in ── */
   async function signIn(email: string, pass: string) {
     await signInWithEmailAndPassword(auth, email, pass);
     setIsGuest(false);
   }
 
-  /* ── sign up — now accepts optional referral code ── */
   async function signUp(email: string, pass: string, referralCode?: string) {
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
     const uid  = cred.user.uid;
 
-    /* resolve referral — find the referrer's uid by their code */
-    let referredBy: string | null = null;
-    let referrerUid: string | null = null;
+    let referredBy: string | null   = null;
+    let referrerUid: string | null  = null;
 
     if (referralCode) {
       try {
@@ -116,10 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           referrerUid = snap.docs[0].id;
           referredBy  = referralCode.trim().toUpperCase();
         }
-      } catch { /* referral lookup failed — just continue without it */ }
+      } catch {}
     }
 
-    /* create usage doc for new user */
     await setDoc(doc(db, "usage", uid), {
       quizCount:    0,
       scanCount:    0,
@@ -131,36 +138,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       createdAt:    new Date().toISOString(),
     });
 
-    /* create pending referral doc for ambassador verification */
     if (referrerUid && referredBy) {
       try {
         await setDoc(doc(db, "referrals", uid), {
-          newUserUid:    uid,
-          newUserEmail:  email,
+          newUserUid:   uid,
+          newUserEmail: email,
           referrerUid,
-          referralCode:  referredBy,
-          verified:      false,          // admin flips this to true
-          createdAt:     new Date().toISOString(),
+          referralCode: referredBy,
+          verified:     false,
+          createdAt:    new Date().toISOString(),
         });
-      } catch { /* non-critical */ }
+      } catch {}
     }
 
     setIsGuest(false);
   }
 
-  /* ── logout ── */
   async function logout() {
     await signOut(auth);
     setUser(null);
     setIsGuest(false);
     setIsPremium(false);
+    setIsApprovedAmbassador(false);
     if (typeof window !== "undefined") {
       localStorage.removeItem("studiengine_onboarded_v2");
       localStorage.removeItem("studiengine_guest_id");
     }
   }
 
-  /* ── guest mode ── */
   function continueAsGuest() {
     setUser(null);
     setIsGuest(true);
@@ -173,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isGuest, isPremium, userId, loading, signIn, signUp, logout, continueAsGuest }}>
+    <AuthContext.Provider value={{ user, isGuest, isPremium, isApprovedAmbassador, userId, loading, signIn, signUp, logout, continueAsGuest }}>
       {children}
     </AuthContext.Provider>
   );
@@ -184,3 +189,4 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be inside AuthProvider");
   return ctx;
 }
+
