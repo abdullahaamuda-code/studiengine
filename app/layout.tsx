@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/components/Toast";
+import AppVersionGate from "@/components/AppVersionGate";
 
 /* ─────────────────────────────────────────────
    METADATA
@@ -20,7 +21,6 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Studiengine" }],
   creator: "Studiengine",
-
   icons: {
     icon: [
       { url: "/studiengine-logo.svg", type: "image/svg+xml" },
@@ -29,13 +29,11 @@ export const metadata: Metadata = {
     apple: "/icon-192.png",
     shortcut: "/studiengine-logo.svg",
   },
-
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Studiengine",
   },
-
   openGraph: {
     type: "website",
     locale: "en_NG",
@@ -52,28 +50,26 @@ export const metadata: Metadata = {
       },
     ],
   },
-
   twitter: {
     card: "summary",
     title: "Studiengine — AI-Powered CBT Practice",
     description:
       "Turn your notes & past questions into real CBT practice. Free for African students.",
   },
-
   manifest: "/manifest.json",
 };
 
 /* ─────────────────────────────────────────────
-   VIEWPORT  (themeColor moved here in Next 14+)
+   VIEWPORT
 ───────────────────────────────────────────── */
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)",  color: "#080c14" },
+    { media: "(prefers-color-scheme: dark)", color: "#080c14" },
     { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,   // prevent iOS double-tap zoom
+  maximumScale: 1,
   userScalable: false,
 };
 
@@ -87,16 +83,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      {/*
-        suppressHydrationWarning on <html> prevents React from warning when
-        ThemeProvider adds data-theme before hydration completes.
-      */}
       <head>
-        {/* Preconnect to font origins for faster load */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-
-        {/* Prevent flash of unstyled theme — runs before React hydrates */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -112,11 +101,10 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <AppVersionGate />
         <ThemeProvider>
           <AuthProvider>
-            <ToastProvider>
-              {children}
-            </ToastProvider>
+            <ToastProvider>{children}</ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
