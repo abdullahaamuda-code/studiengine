@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/components/Toast";
-import AppVersionGate from "@/components/AppVersionGate";
+import AppStorageReset from "@/components/AppStorageReset";
 
 /* ─────────────────────────────────────────────
    METADATA
@@ -101,7 +101,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <AppVersionGate />
+        <AppStorageReset />
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>{children}</ToastProvider>
