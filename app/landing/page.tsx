@@ -526,20 +526,41 @@ export default function LandingPage() {
             </div>
           </FadeIn>
         </section>
-
+            {/* Ambassador CTA strip */}
+<div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "40px 24px", textAlign: "center" }}>
+  <div style={{ maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+    <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.22)", borderRadius: 99, padding: "4px 14px 4px 10px", fontSize: 12, color: "#a5b4fc" }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#818cf8", boxShadow: "0 0 6px rgba(129,140,248,0.8)", display: "inline-block" }} />
+      Earn while you help students
+    </div>
+    <h3 style={{ fontSize: "clamp(18px,3vw,26px)", fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", margin: 0, color: "#f1f5f9" }}>
+      Become an Ambassador
+    </h3>
+    <p style={{ fontSize: 13.5, color: "#475569", margin: 0, lineHeight: 1.7 }}>
+      Share Studiengine with your network, earn free Premium and commissions for every student you bring in.
+    </p>
+    <button onClick={() => router.push("/ambassadors")}
+      style={{ padding: "12px 28px", borderRadius: 11, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", color: "#94a3b8", fontSize: 13.5, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-body)", transition: "all 0.2s" }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,102,241,0.1)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(99,102,241,0.3)"; (e.currentTarget as HTMLButtonElement).style.color = "#a5b4fc"; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8"; }}>
+      Learn more →
+    </button>
+  </div>
+</div>
         {/* ── Footer ── */}
         <footer style={{ borderTop: "1px solid rgba(255,255,255,0.05)", padding: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: 1100, margin: "0 auto", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <StudiengineLogo size={22} />
-            <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 600, fontFamily: "var(--font-display)" }}>Studiengine</span>
-          </div>
-          <p style={{ fontSize: 12, color: "#1e293b", margin: 0 }}>© 2026 Studiengine · Built for African students 🇳🇬</p>
-          <div style={{ display: "flex", gap: 20 }}>
-            {["Privacy", "Terms", "Contact"].map(l => (
-              <span key={l} style={{ fontSize: 12, color: "#1e293b", cursor: "pointer" }} onMouseEnter={e => (e.currentTarget.style.color = "#818cf8")} onMouseLeave={e => (e.currentTarget.style.color = "#1e293b")}>{l}</span>
-            ))}
-          </div>
-        </footer>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <StudiengineLogo size={22} />
+    <span style={{ fontSize: 13, color: "#1e293b", fontWeight: 600, fontFamily: "var(--font-display)" }}>Studiengine</span>
+  </div>
+  <p style={{ fontSize: 12, color: "#1e293b", margin: 0 }}>© 2026 Studiengine · Built for African students 🇳🇬</p>
+  <button onClick={() => router.push("/ambassadors")}
+    style={{ fontSize: 12, color: "#1e293b", cursor: "pointer", background: "none", border: "none", fontFamily: "var(--font-body)", transition: "color 0.15s" }}
+    onMouseEnter={e => (e.currentTarget.style.color = "#818cf8")}
+    onMouseLeave={e => (e.currentTarget.style.color = "#1e293b")}>
+    Ambassadors
+  </button>
+</footer>
 
       </div>
     </div>
