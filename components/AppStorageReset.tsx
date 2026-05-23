@@ -3,41 +3,47 @@ import { useEffect } from "react";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "dev";
 
-// Keys to clear on version bump — does NOT include auth/theme keys
-// so users stay logged in and keep their theme preference
-const KEYS_TO_CLEAR = [
-  "studiengine_onboarded_v2",   // onboarding modal
-  "studiengine_install_dismissed_at", // install prompt
-  "studiengine_admin_ai_chat",  // admin AI chat history
-  "quizState",
-  "draftAnswers",
-  "attemptCache",
-  "selectedTopic",
-];
-
-// Never touch these — user stays logged in
-const PRESERVE_KEYS = [
+// Only these keys survive a version bump
+const PRESERVE_KEYS = new Set([
   "studiengine_guest_id",
   "studiengine_theme",
   "studiengine_installed",
   "appVersion",
-];
+  "token",
+  "accessToken",
+  "refreshToken",
+  "auth",
+  "user",
+  "session",
+]);
 
 export default function AppStorageReset() {
   useEffect(() => {
     try {
       const savedVersion = localStorage.getItem("appVersion");
-      if (savedVersion === APP_VERSION) return; // already up to date
 
-      // Clear only the non-auth keys
-      for (const key of KEYS_TO_CLEAR) {
-        localStorage.removeItem(key);
+      // If same version, do nothing
+      if (savedVersion === APP_VERSION) return;
+
+      // Snapshot keys first so removing doesn't mess up indexing
+      const keys: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) keys.push(key);
       }
 
-      // Save new version
-      localStorage.setItem("appVersion", APP_VERSION);
+      // Remove everything except preserved keys
+      for (const key of keys) {
+        if (!PRESERVE_KEYS.has(key)) {
+          localStorage.removeItem(key);
+        }
+      }
 
-    } catch {}
+      // Store new version
+      localStorage.setItem("appVersion", APP_VERSION);
+    } catch (e) {
+      console.error("AppStorageReset failed", e);
+    }
   }, []);
 
   return null;
