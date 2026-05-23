@@ -1,3 +1,4 @@
+// components/AppStorageReset.tsx
 "use client";
 
 import { useEffect } from "react";
@@ -12,13 +13,12 @@ export default function AppStorageReset() {
       // If same version, do nothing
       if (savedVersion === APP_VERSION) return;
 
-      // Hard reset: clear all data for this origin
-      localStorage.clear(); // nukes everything for this site[web:21][web:22][web:25]
+      // Hard reset: clear all localStorage for this origin
+      localStorage.clear(); // wipes all keys for your site on this browser[web:21][web:53]
 
-      // Store new version so this only happens once per browser
+      // Store new version so it only happens once per browser per version
       localStorage.setItem("appVersion", APP_VERSION);
     } catch (e) {
-      // On Safari with cookies/localStorage blocked, this can throw
       console.error("AppStorageReset failed", e);
     }
   }, []);
