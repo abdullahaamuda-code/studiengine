@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import MathText from "@/components/MathText";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -48,7 +48,7 @@ function Logo() {
         <rect x="96" y="166" width="320" height="52" rx="26" fill="url(#rv-l)" opacity="0.78" />
         <rect x="96" y="236" width="330" height="52" rx="26" fill="url(#rv-l)" opacity="0.62" />
         <rect x="96" y="306" width="320" height="52" rx="26" fill="url(#rv-l)" opacity="0.46" />
-        <rect x="96" y="376" width="220" height="52" rx="26" fill="url(#rv-l)" opacity="0.30" />
+        <rect x="96" y="376" width="220" height="52" rx="26" fill="url(#rv-l)" opacity="0.3" />
         <path
           d="M330 130 C330 130 330 86 256 86 C182 86 158 130 158 174 C158 218 194 238 256 256 C318 274 354 294 354 338 C354 382 330 426 256 426 C182 426 158 382 158 382"
           fill="none"
@@ -130,6 +130,17 @@ function ReviewInner() {
 
     setExplanation("");
     setStreaming(true);
+
+    try {
+      await addDoc(collection(db, "events"), {
+        type: "ai_explain",
+        createdAt: serverTimestamp(),
+        userId: "unknown",
+        sessionId: sessionId || null,
+        questionIndex: currentIdx,
+      });
+    } catch {
+    }
 
     try {
       const groqKey = process.env.NEXT_PUBLIC_GROQ_KEY;
@@ -241,11 +252,12 @@ Use:
             if (token) {
               setExplanation((prev) => prev + token);
             }
-          } catch {}
+          } catch {
+          }
         }
       }
     } catch (e: any) {
-      setExplanation(`Error: ${e.message}`);
+      setExplanation(`Error: ${e.message || "Something went wrong."}`);
     }
 
     setStreaming(false);
@@ -262,7 +274,15 @@ Use:
 
   if (loading)
     return (
-      <div style={{ minHeight: "100vh", background: "#080c14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#080c14",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <div
           style={{
             width: 20,
@@ -292,7 +312,15 @@ Use:
           gap: 14,
         }}
       >
-        <p style={{ fontSize: 16, color: "#f1f5f9", fontWeight: 700 }}>Session not found</p>
+        <p
+          style={{
+            fontSize: 16,
+            color: "#f1f5f9",
+            fontWeight: 700,
+          }}
+        >
+          Session not found
+        </p>
         <p style={{ fontSize: 13, color: "#475569" }}>{error}</p>
         <button
           onClick={() => router.push("/app")}
@@ -314,7 +342,14 @@ Use:
     );
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080c14", fontFamily: "var(--font-body)", color: "#f1f5f9" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#080c14",
+        fontFamily: "var(--font-body)",
+        color: "#f1f5f9",
+      }}
+    >
       <style>{`
         @keyframes rv-spin { to{transform:rotate(360deg)} }
         @keyframes rv-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
@@ -475,7 +510,8 @@ Use:
             width: 500,
             height: 500,
             borderRadius: "50%",
-            background: "radial-gradient(circle,rgba(99,102,241,0.08) 0%,transparent 65%)",
+            background:
+              "radial-gradient(circle,rgba(99,102,241,0.08) 0%,transparent 65%)",
             filter: "blur(80px)",
           }}
         />
@@ -487,13 +523,22 @@ Use:
             width: 400,
             height: 400,
             borderRadius: "50%",
-            background: "radial-gradient(circle,rgba(56,189,248,0.06) 0%,transparent 65%)",
+            background:
+              "radial-gradient(circle,rgba(56,189,248,0.06) 0%,transparent 65%)",
             filter: "blur(80px)",
           }}
         />
       </div>
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: 760, margin: "0 auto", padding: "0 16px 60px" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: "0 16px 60px",
+        }}
+      >
         <div
           style={{
             position: "sticky",
@@ -570,28 +615,57 @@ Use:
             Question {currentIdx + 1} of {questions.length}
           </h1>
 
-          <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
-            {questions.map((_, i) => (
-              <button
-                key={i}
-                className="q-idx-pill"
-                onClick={() => setCurrentIdx(i)}
-                style={{
-                  borderColor: i === currentIdx ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.08)",
-                  background: i === currentIdx ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.03)",
-                  color: i === currentIdx ? "#a5b4fc" : "#475569",
-                }}
-              >
-                {i + 1}
-              </button>
-            ))}
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "center",
+              marginTop: 10,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                gap: 5,
+                flexWrap: "wrap",
+                justifyContent: "center",
+                alignItems: "center",
+                maxWidth: 520,
+              }}
+            >
+              {questions.map((_, i) => (
+                <button
+                  key={i}
+                  className="q-idx-pill"
+                  onClick={() => setCurrentIdx(i)}
+                  style={{
+                    borderColor:
+                      i === currentIdx
+                        ? "rgba(99,102,241,0.5)"
+                        : "rgba(255,255,255,0.08)",
+                    background:
+                      i === currentIdx
+                        ? "rgba(99,102,241,0.2)"
+                        : "rgba(255,255,255,0.03)",
+                    color: i === currentIdx ? "#a5b4fc" : "#475569",
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {q && (
           <div
             key={currentIdx}
-            style={{ animation: "rv-in 0.3s cubic-bezier(0.4,0,0.2,1)", display: "flex", flexDirection: "column", gap: 12 }}
+            style={{
+              animation: "rv-in 0.3s cubic-bezier(0.4,0,0.2,1)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
           >
             <div
               style={{
@@ -599,6 +673,9 @@ Use:
                 border: "1px solid rgba(255,255,255,0.08)",
                 borderRadius: 16,
                 padding: "18px 18px",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
               }}
             >
               {q.year && (
@@ -619,83 +696,115 @@ Use:
                 </span>
               )}
 
-              <p style={{ fontSize: 15, color: "#f1f5f9", lineHeight: 1.75, fontWeight: 500, margin: "0 0 16px" }}>
-                <MathText text={q.question} />
-              </p>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {q.options.map((opt, idx) => {
-                  const hasLabel = /^[ABCD]\.\s/i.test(opt);
-                  const letter = hasLabel ? opt.charAt(0).toUpperCase() : ["A", "B", "C", "D"][idx] || "?";
-                  const content = hasLabel ? opt.slice(3).trim() : opt;
-                  const isCorrect = letter === q.answer.toUpperCase();
-
-                  return (
-                    <div
-                      key={opt}
-                      style={{
-                        display: "flex",
-                        gap: 10,
-                        alignItems: "flex-start",
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid",
-                        borderColor: isCorrect ? "rgba(52,211,153,0.4)" : "rgba(255,255,255,0.06)",
-                        background: isCorrect ? "rgba(4,47,29,0.5)" : "rgba(255,255,255,0.02)",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: 6,
-                          flexShrink: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 10,
-                          fontWeight: 800,
-                          background: isCorrect ? "rgba(52,211,153,0.25)" : "rgba(255,255,255,0.05)",
-                          color: isCorrect ? "#34d399" : "#334155",
-                        }}
-                      >
-                        {isCorrect ? "✓" : letter}
-                      </span>
-                      <span style={{ fontSize: 13, color: isCorrect ? "#6ee7b7" : "#64748b", lineHeight: 1.55, flex: 1 }}>
-                        <MathText text={content} />
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {q.explanation && (
-                <div
+              <div style={{ width: "100%" }}>
+                <p
                   style={{
-                    marginTop: 12,
-                    padding: "10px 12px",
-                    background: "rgba(99,102,241,0.06)",
-                    border: "1px solid rgba(99,102,241,0.15)",
-                    borderRadius: 10,
+                    fontSize: 15,
+                    color: "#f1f5f9",
+                    lineHeight: 1.75,
+                    fontWeight: 500,
+                    margin: "0 0 16px",
                   }}
                 >
-                  <p
+                  <MathText text={q.question} />
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {q.options.map((opt, idx) => {
+                    const hasLabel = /^[ABCD]\.\s/i.test(opt);
+                    const letter = hasLabel
+                      ? opt.charAt(0).toUpperCase()
+                      : ["A", "B", "C", "D"][idx] || "?";
+                    const content = hasLabel ? opt.slice(3).trim() : opt;
+                    const isCorrect = letter === q.answer.toUpperCase();
+
+                    return (
+                      <div
+                        key={opt}
+                        style={{
+                          display: "flex",
+                          gap: 10,
+                          alignItems: "flex-start",
+                          padding: "9px 12px",
+                          borderRadius: 10,
+                          border: "1px solid",
+                          borderColor: isCorrect
+                            ? "rgba(52,211,153,0.4)"
+                            : "rgba(255,255,255,0.06)",
+                          background: isCorrect
+                            ? "rgba(4,47,29,0.5)"
+                            : "rgba(255,255,255,0.02)",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 6,
+                            flexShrink: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 10,
+                            fontWeight: 800,
+                            background: isCorrect
+                              ? "rgba(52,211,153,0.25)"
+                              : "rgba(255,255,255,0.05)",
+                            color: isCorrect ? "#34d399" : "#334155",
+                          }}
+                        >
+                          {isCorrect ? "✓" : letter}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: isCorrect ? "#6ee7b7" : "#64748b",
+                            lineHeight: 1.55,
+                            flex: 1,
+                          }}
+                        >
+                          <MathText text={content} />
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {q.explanation && (
+                  <div
                     style={{
-                      fontSize: 11,
-                      fontWeight: 700,
-                      color: "#818cf8",
-                      marginBottom: 4,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
+                      marginTop: 12,
+                      padding: "10px 12px",
+                      background: "rgba(99,102,241,0.06)",
+                      border: "1px solid rgba(99,102,241,0.15)",
+                      borderRadius: 10,
                     }}
                   >
-                    Official Explanation
-                  </p>
-                  <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7, margin: 0 }}>
-                    <MathText text={q.explanation} />
-                  </p>
-                </div>
-              )}
+                    <p
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#818cf8",
+                        marginBottom: 4,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Official Explanation
+                    </p>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "#64748b",
+                        lineHeight: 1.7,
+                        margin: 0,
+                      }}
+                    >
+                      <MathText text={q.explanation} />
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div
@@ -706,7 +815,14 @@ Use:
                 padding: "16px",
               }}
             >
-              <p style={{ fontSize: 12, fontWeight: 700, color: "#f1f5f9", margin: "0 0 10px" }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#f1f5f9",
+                  margin: "0 0 10px",
+                }}
+              >
                 Ask for a detailed explanation
               </p>
 
@@ -720,37 +836,43 @@ Use:
                 disabled={streaming}
               />
 
-              <button
-                className="explain-btn"
-                onClick={streamExplanation}
-                disabled={streaming}
-                style={{
-                  background: streaming ? "rgba(99,102,241,0.3)" : "linear-gradient(135deg,#6366f1,#4f46e5,#4338ca)",
-                  border: "1px solid rgba(129,140,248,0.4)",
-                  color: "#fff",
-                  boxShadow: streaming ? "none" : "0 4px 20px rgba(99,102,241,0.3)",
-                }}
-              >
-                {streaming ? (
-                  <>
-                    <div
-                      style={{
-                        width: 14,
-                        height: 14,
-                        border: "2px solid rgba(255,255,255,0.2)",
-                        borderTopColor: "#fff",
-                        borderRadius: "50%",
-                        animation: "rv-spin 0.65s linear infinite",
-                      }}
-                    />
-                    Explaining…
-                  </>
-                ) : explanation ? (
-                  "Re-explain →"
-                ) : (
-                  "Explain this question →"
-                )}
-              </button>
+              <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+                <button
+                  className="explain-btn"
+                  onClick={streamExplanation}
+                  disabled={streaming}
+                  style={{
+                    width: "100%",
+                    maxWidth: 420,
+                    background: streaming
+                      ? "rgba(99,102,241,0.3)"
+                      : "linear-gradient(135deg,#6366f1,#4f46e5,#4338ca)",
+                    border: "1px solid rgba(129,140,248,0.4)",
+                    color: "#fff",
+                    boxShadow: streaming ? "none" : "0 4px 20px rgba(99,102,241,0.3)",
+                  }}
+                >
+                  {streaming ? (
+                    <>
+                      <div
+                        style={{
+                          width: 14,
+                          height: 14,
+                          border: "2px solid rgba(255,255,255,0.2)",
+                          borderTopColor: "#fff",
+                          borderRadius: "50%",
+                          animation: "rv-spin 0.65s linear infinite",
+                        }}
+                      />
+                      Explaining…
+                    </>
+                  ) : explanation ? (
+                    "Re-explain →"
+                  ) : (
+                    "Explain this question →"
+                  )}
+                </button>
+              </div>
             </div>
 
             {(explanation || streaming) && (
@@ -779,11 +901,17 @@ Use:
                         height: 8,
                         borderRadius: "50%",
                         background: streaming ? "#818cf8" : "#34d399",
-                        boxShadow: `0 0 6px ${streaming ? "rgba(129,140,248,0.8)" : "rgba(52,211,153,0.8)"}`,
+                        boxShadow: `0 0 6px ${
+                          streaming
+                            ? "rgba(129,140,248,0.8)"
+                            : "rgba(52,211,153,0.8)"
+                        }`,
                         animation: streaming ? "cursor-blink 1s infinite" : "none",
                       }}
                     />
-                    <span style={{ fontSize: 12, color: "#475569" }}>{streaming ? "AI is explaining…" : "Explanation ready"}</span>
+                    <span style={{ fontSize: 12, color: "#475569" }}>
+                      {streaming ? "AI is explaining…" : "Explanation ready"}
+                    </span>
                   </div>
                   {explanation && !streaming && (
                     <button className="copy-btn" onClick={copyExplanation}>
@@ -794,7 +922,11 @@ Use:
 
                 <div
                   ref={explanationRef}
-                  style={{ padding: "16px", maxHeight: 430, overflowY: "auto" }}
+                  style={{
+                    padding: "16px",
+                    maxHeight: 430,
+                    overflowY: "auto",
+                  }}
                 >
                   {explanation ? (
                     <div className="markdown">
@@ -812,7 +944,9 @@ Use:
                             height: 6,
                             borderRadius: "50%",
                             background: "#818cf8",
-                            animation: `cursor-blink 1.2s ease-in-out ${i * 0.2}s infinite`,
+                            animation: `cursor-blink 1.2s ease-in-out ${
+                              i * 0.2
+                            }s infinite`,
                           }}
                         />
                       ))}
@@ -822,11 +956,28 @@ Use:
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "space-between", marginTop: 4 }}>
-              <button className="rv-nav-btn" disabled={currentIdx === 0} onClick={() => setCurrentIdx((i) => i - 1)}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                justifyContent: "space-between",
+                marginTop: 4,
+              }}
+            >
+              <button
+                className="rv-nav-btn"
+                disabled={currentIdx === 0}
+                onClick={() => setCurrentIdx((i) => i - 1)}
+              >
                 ← Previous
               </button>
-              <span style={{ fontSize: 12, color: "#334155", alignSelf: "center" }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "#334155",
+                  alignSelf: "center",
+                }}
+              >
                 {currentIdx + 1} / {questions.length}
               </span>
               <button
@@ -848,7 +999,15 @@ export default function ReviewPage() {
   return (
     <Suspense
       fallback={
-        <div style={{ minHeight: "100vh", background: "#080c14", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "#080c14",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <div
             style={{
               width: 20,
