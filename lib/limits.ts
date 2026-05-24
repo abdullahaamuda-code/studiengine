@@ -6,6 +6,7 @@ export interface UsageDoc {
   scanCount: number;
   lastReset: string;
   isPremium: boolean;
+  allTimeQuizCount?: number;
 }
 
 export const LIMITS = {
@@ -14,35 +15,74 @@ export const LIMITS = {
   premium: { quiz: Infinity, scan: Infinity, maxQuestions: 30, maxPages: 50 },
 };
 
-function today() { return new Date().toISOString().split("T")[0]; }
+function today() {
+  return new Date().toISOString().split("T")[0];
+}
 
 export async function getUsage(userId: string): Promise<UsageDoc> {
   const ref = doc(db, "usage", userId);
   const snap = await getDoc(ref);
+
   if (!snap.exists()) {
-    const fresh: UsageDoc = { quizCount: 0, scanCount: 0, lastReset: today(), isPremium: false };
+    const fresh: UsageDoc = {
+      quizCount: 0,
+      scanCount: 0,
+      lastReset: today(),
+      isPremium: false,
+      allTimeQuizCount: 0,
+    };
     await setDoc(ref, fresh);
     return fresh;
   }
+
   const data = snap.data() as UsageDoc;
+
+  // Ensure allTimeQuizCount exists for older docs
+  if (typeof data.allTimeQuizCount === "undefined") {
+    try {
+      await updateDoc(ref, { allTimeQuizCount: 0 });
+      data.allTimeQuizCount = 0;
+    } catch {
+      // ignore
+    }
+  }
+
   if (data.lastReset !== today()) {
-    const reset: Partial<UsageDoc> = { quizCount: 0, scanCount: 0, lastReset: today() };
+    const reset: Partial<UsageDoc> = {
+      quizCount: 0,
+      scanCount: 0,
+      lastReset: today(),
+    };
     await updateDoc(ref, reset);
     return { ...data, ...reset };
   }
+
   return data;
 }
 
 export async function incrementQuiz(userId: string) {
   const ref = doc(db, "usage", userId);
   const usage = await getUsage(userId);
-  await updateDoc(ref, { quizCount: usage.quizCount + 1 });
+
+  try {
+    await updateDoc(ref, {
+      quizCount: usage.quizCount + 1,
+      allTimeQuizCount: (usage.allTimeQuizCount || 0) + 1,
+    });
+  } catch {
+    // best effort only; do not break UX
+  }
 }
 
 export async function incrementScan(userId: string) {
   const ref = doc(db, "usage", userId);
   const usage = await getUsage(userId);
-  await updateDoc(ref, { scanCount: usage.scanCount + 1 });
+
+  try {
+    await updateDoc(ref, { scanCount: usage.scanCount + 1 });
+  } catch {
+    // ignore
+  }
 }
 
 export function getLimitsForUser(isPremium: boolean, isGuest: boolean) {
