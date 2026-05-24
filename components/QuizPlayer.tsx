@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import MathText from "./MathText";
 import { db } from "@/lib/firebase";
@@ -40,6 +40,8 @@ interface TopicAnalysis {
   advice: string;
 }
 
+const MIN_REVIEW_VISIBLE_MS = 900;
+
 export default function QuizPlayer({
   questions,
   onReset,
@@ -73,6 +75,10 @@ export default function QuizPlayer({
 
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [savingReview, setSavingReview] = useState(false);
+  const [reviewLoadingPct, setReviewLoadingPct] = useState(0);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const reviewClickLock = useRef(false);
 
   const q = questions[current];
   const total = questions.length;
@@ -81,15 +87,11 @@ export default function QuizPlayer({
     function handleKey(e: KeyboardEvent) {
       if (done) return;
       if (!revealed) {
-        const idx = ({ a: 0, b: 1, c: 2, d: 3 } as any)[
-          e.key.toLowerCase()
-        ];
+        const idx = ({ a: 0, b: 1, c: 2, d: 3 } as any)[e.key.toLowerCase()];
         if (idx !== undefined && q.options[idx]) pick(q.options[idx]);
-      } else {
-        if (e.key === " " || e.key === "Enter") {
-          e.preventDefault();
-          next();
-        }
+      } else if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        next();
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -109,8 +111,26 @@ export default function QuizPlayer({
     return () => clearTimeout(t);
   }, [timerActive, timeLeft, done, score]);
 
+  useEffect(() => {
+    if (!savingReview) {
+      setReviewLoadingPct(0);
+      return;
+    }
+    setReviewLoadingPct(5);
+    const interval = setInterval(() => {
+      setReviewLoadingPct((p) => (p < 95 ? p + 5 : p));
+    }, 120);
+    return () => clearInterval(interval);
+  }, [savingReview]);
+
   function formatTime(s: number) {
     return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
+  }
+
+  function nextPaint() {
+    return new Promise<void>((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
   }
 
   async function saveHistory(finalScore: number) {
@@ -125,13 +145,10 @@ export default function QuizPlayer({
         createdAt: serverTimestamp(),
       });
       setSaved(true);
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   async function logSession(finalScore: number) {
-    // Log guests, free, and premium alike
     try {
       await addDoc(collection(db, "cbtSessions"), {
         userId: userId || "guest",
@@ -144,9 +161,7 @@ export default function QuizPlayer({
         isPremium: isPremium || false,
         createdAt: serverTimestamp(),
       });
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   async function analyzeTopics(wrongs: Question[], corrects: Question[]) {
@@ -164,21 +179,19 @@ export default function QuizPlayer({
         .map((q) => q.question.slice(0, 80))
         .join(" | ");
 
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${groqKey}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            max_tokens: 200,
-            messages: [
-              {
-                role: "user",
-                content: `Analyze these exam questions and identify specific topics/concepts.
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${groqKey}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          max_tokens: 200,
+          messages: [
+            {
+              role: "user",
+              content: `Analyze these exam questions and identify specific topics/concepts.
 
 Questions the student GOT WRONG: ${wrongSummary || "none"}
 Questions the student GOT RIGHT: ${correctSummary || "none"}
@@ -191,11 +204,10 @@ Reply with ONLY valid JSON (no markdown, no explanation):
 }
 
 Keep topic names short (2-4 words max). Max 4 items per array.`,
-              },
-            ],
-          }),
-        },
-      );
+            },
+          ],
+        }),
+      });
 
       const data = await res.json();
       const text = data.choices?.[0]?.message?.content || "";
@@ -204,33 +216,25 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
       setTopicAnalysis(parsed);
     } catch {
       setTopicAnalysis({
-        struggled: wrongs
-          .slice(0, 3)
-          .map((q) =>
-            q.question
-              .split(" ")
-              .slice(0, 4)
-              .join(" "),
-          ),
-        strong: corrects
-          .slice(0, 2)
-          .map((q) =>
-            q.question
-              .split(" ")
-              .slice(0, 4)
-              .join(" "),
-          ),
-        advice:
-          "Revisit the topics where you made mistakes and re-read those sections.",
+        struggled: wrongs.slice(0, 3).map((q) => q.question.split(" ").slice(0, 4).join(" ")),
+        strong: corrects.slice(0, 2).map((q) => q.question.split(" ").slice(0, 4).join(" ")),
+        advice: "Revisit the topics where you made mistakes and re-read those sections.",
       });
     }
     setAnalyzingTopics(false);
   }
 
   async function saveReviewSession(wrongs: Question[]) {
-    if (!isPremium || wrongs.length === 0) return;
+    if (!isPremium || wrongs.length === 0) return null;
+    const startedAt = Date.now();
+
     setSavingReview(true);
+    setReviewError(null);
+    setReviewLoadingPct(5);
+
     try {
+      await nextPaint();
+
       const id = Math.random().toString(36).slice(2, 10);
       await setDoc(doc(db, "reviewSessions", id), {
         questions,
@@ -239,11 +243,21 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
         userId: userId || "guest",
         createdAt: serverTimestamp(),
       });
+
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < MIN_REVIEW_VISIBLE_MS) {
+        await new Promise((r) => setTimeout(r, MIN_REVIEW_VISIBLE_MS - elapsed));
+      }
+
       setReviewSessionId(id);
+      return id;
     } catch {
-      // ignore
+      setReviewError("Could not prepare review session. Please try again.");
+      return null;
+    } finally {
+      setSavingReview(false);
+      setReviewLoadingPct(0);
     }
-    setSavingReview(false);
   }
 
   function finish(finalScore: number) {
@@ -252,7 +266,11 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
     saveHistory(finalScore);
     logSession(finalScore);
     analyzeTopics(wrongs, corrects);
-    if (isPremium) saveReviewSession(wrongs);
+
+    if (isPremium && wrongs.length > 0) {
+      void saveReviewSession(wrongs);
+    }
+
     setDone(true);
     if (onComplete) onComplete();
   }
@@ -295,16 +313,13 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
         createdBy: userId || "guest",
       });
 
-      // log shared_open event in events collection
       try {
         await addDoc(collection(db, "events"), {
           type: "shared_open",
           createdAt: serverTimestamp(),
           createdBy: userId || "guest",
         });
-      } catch {
-        // ignore logging errors
-      }
+      } catch {}
 
       const url = `${window.location.origin}/cbt/${id}`;
       setShareUrl(url);
@@ -354,7 +369,7 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
           .res-wrap { animation:res-in 0.45s cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; gap:12px; }
           .topic-pill-bad { display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:99px; background:rgba(248,113,113,0.1); border:1px solid rgba(248,113,113,0.25); color:#fca5a5; font-size:12px; font-weight:600; animation:topic-in 0.4s ease both; }
           .topic-pill-good { display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:99px; background:rgba(52,211,153,0.1); border:1px solid rgba(52,211,153,0.25); color:#6ee7b7; font-size:12px; font-weight:600; animation:topic-in 0.4s ease both; }
-          .retry-btn { width:100%; padding:13px 0; border-radius:11px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px; }
+          .retry-btn { width:100%; padding:13px 0; border-radius:11px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:8px; position:relative; overflow:hidden; }
           .retry-btn:hover { transform:translateY(-1px); }
           .share-btn:hover { background:rgba(56,189,248,0.14) !important; }
           .review-btn:hover { box-shadow:0 6px 24px rgba(251,191,36,0.3) !important; }
@@ -366,23 +381,9 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
         <div className="res-wrap">
           <div style={{ textAlign: "center", padding: "24px 16px 16px" }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>{grade.emoji}</div>
-            <div
-              style={{
-                position: "relative",
-                width: 100,
-                height: 100,
-                margin: "0 auto 14px",
-              }}
-            >
+            <div style={{ position: "relative", width: 100, height: 100, margin: "0 auto 14px" }}>
               <svg width="100" height="100" style={{ transform: "rotate(-90deg)" }}>
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  stroke="rgba(255,255,255,0.05)"
-                  strokeWidth="7"
-                />
+                <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
                 <circle
                   cx="50"
                   cy="50"
@@ -394,8 +395,7 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                   strokeDasharray="251"
                   strokeDashoffset={`${251 * (1 - finalPct / 100)}`}
                   style={{
-                    transition:
-                      "stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)",
+                    transition: "stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)",
                     filter: `drop-shadow(0 0 6px ${grade.color}88)`,
                   }}
                 />
@@ -422,9 +422,7 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                 >
                   {finalPct}%
                 </span>
-                <span
-                  style={{ fontSize: 10, color: "#334155", marginTop: 1 }}
-                >
+                <span style={{ fontSize: 10, color: "#334155", marginTop: 1 }}>
                   {score}/{total}
                 </span>
               </div>
@@ -441,31 +439,11 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
             >
               {grade.label}
             </h2>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#475569",
-                margin: 0,
-                lineHeight: 1.65,
-                maxWidth: 280,
-                marginLeft: "auto",
-                marginRight: "auto",
-              }}
-            >
+            <p style={{ fontSize: 13, color: "#475569", margin: 0, lineHeight: 1.65, maxWidth: 280, marginLeft: "auto", marginRight: "auto" }}>
               {grade.sub}
             </p>
             {isPremium && saved && (
-              <p
-                style={{
-                  fontSize: 11,
-                  color: "#34d399",
-                  marginTop: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                }}
-              >
+              <p style={{ fontSize: 11, color: "#34d399", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                 ✓ Saved to history
               </p>
             )}
@@ -479,50 +457,17 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
               padding: "14px 16px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 8,
-                  background: "rgba(99,102,241,0.1)",
-                  border: "1px solid rgba(99,102,241,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 13,
-                }}
-              >
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>
                 ◈
               </div>
-              <p
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: "#f1f5f9",
-                  margin: 0,
-                }}
-              >
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", margin: 0 }}>
                 Performance breakdown
               </p>
             </div>
 
             {analyzingTopics ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "8px 0",
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0" }}>
                 {[0, 1, 2].map((i) => (
                   <div
                     key={i}
@@ -543,31 +488,12 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
               <div>
                 {topicAnalysis.struggled.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#f87171",
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-                        marginBottom: 8,
-                      }}
-                    >
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#f87171", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 8 }}>
                       Needs work
                     </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 6,
-                      }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {topicAnalysis.struggled.map((t, i) => (
-                        <span
-                          key={t}
-                          className="topic-pill-bad"
-                          style={{ animationDelay: `${i * 0.08}s` }}
-                        >
+                        <span key={t} className="topic-pill-bad" style={{ animationDelay: `${i * 0.08}s` }}>
                           <span style={{ fontSize: 9 }}>✗</span>
                           {t}
                         </span>
@@ -578,31 +504,12 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
 
                 {topicAnalysis.strong.length > 0 && (
                   <div style={{ marginBottom: 12 }}>
-                    <p
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#34d399",
-                        letterSpacing: "0.07em",
-                        textTransform: "uppercase",
-                        marginBottom: 8,
-                      }}
-                    >
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#34d399", letterSpacing: "0.07em", textTransform: "uppercase", marginBottom: 8 }}>
                       You did well in
                     </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: 6,
-                      }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {topicAnalysis.strong.map((t, i) => (
-                        <span
-                          key={t}
-                          className="topic-pill-good"
-                          style={{ animationDelay: `${i * 0.08}s` }}
-                        >
+                        <span key={t} className="topic-pill-good" style={{ animationDelay: `${i * 0.08}s` }}>
                           <span style={{ fontSize: 9 }}>✓</span>
                           {t}
                         </span>
@@ -612,24 +519,8 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                 )}
 
                 {topicAnalysis.advice && (
-                  <div
-                    style={{
-                      padding: "10px 12px",
-                      background: "rgba(99,102,241,0.06)",
-                      border: "1px solid rgba(99,102,241,0.15)",
-                      borderRadius: 10,
-                      fontSize: 12.5,
-                      color: "#94a3b8",
-                      lineHeight: 1.65,
-                      animation: "advice-in 0.5s ease 0.3s both",
-                    }}
-                  >
-                    <span
-                      style={{
-                        color: "#818cf8",
-                        fontWeight: 700,
-                      }}
-                    >
+                  <div style={{ padding: "10px 12px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 10, fontSize: 12.5, color: "#94a3b8", lineHeight: 1.65, animation: "advice-in 0.5s ease 0.3s both" }}>
+                    <span style={{ color: "#818cf8", fontWeight: 700 }}>
                       Advice:{" "}
                     </span>
                     {topicAnalysis.advice}
@@ -643,27 +534,14 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                     style={{ marginTop: 10 }}
                   >
                     <span>Questions you missed ({wrongOnes.length})</span>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        transform: showTopics ? "rotate(180deg)" : "none",
-                        transition: "transform 0.2s",
-                      }}
-                    >
+                    <span style={{ fontSize: 12, transform: showTopics ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
                       ▾
                     </span>
                   </button>
                 )}
 
                 {showTopics && wrongOnes.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 0,
-                    }}
-                  >
+                  <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 0 }}>
                     {wrongOnes.map((wq, i) => (
                       <div
                         key={i}
@@ -678,26 +556,11 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                           alignItems: "flex-start",
                         }}
                       >
-                        <span
-                          style={{
-                            color: "#f87171",
-                            fontSize: 11,
-                            flexShrink: 0,
-                            marginTop: 2,
-                            fontWeight: 700,
-                          }}
-                        >
+                        <span style={{ color: "#f87171", fontSize: 11, flexShrink: 0, marginTop: 2, fontWeight: 700 }}>
                           ✗
                         </span>
                         <div style={{ flex: 1 }}>
-                          <p
-                            style={{
-                              fontSize: 12.5,
-                              color: "#f1f5f9",
-                              margin: "0 0 3px",
-                              lineHeight: 1.5,
-                            }}
-                          >
+                          <p style={{ fontSize: 12.5, color: "#f1f5f9", margin: "0 0 3px", lineHeight: 1.5 }}>
                             <MathText
                               text={
                                 wq.question.slice(0, 100) +
@@ -705,22 +568,14 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                               }
                             />
                           </p>
-                          <p
-                            style={{
-                              fontSize: 11.5,
-                              color: "#34d399",
-                              margin: 0,
-                            }}
-                          >
+                          <p style={{ fontSize: 11.5, color: "#34d399", margin: 0 }}>
                             ✓ {wq.answer}.{" "}
                             <MathText
                               text={
                                 wq.options
                                   ?.find(
                                     (o) =>
-                                      o
-                                        .charAt(0)
-                                        .toUpperCase() ===
+                                      o.charAt(0).toUpperCase() ===
                                       wq.answer?.toUpperCase(),
                                   )
                                   ?.slice(3) || ""
@@ -736,6 +591,12 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
             ) : (
               <p style={{ fontSize: 12.5, color: "#334155", margin: 0 }}>
                 No analysis available.
+              </p>
+            )}
+
+            {reviewError && (
+              <p style={{ fontSize: 12, color: "#f87171", marginTop: 10, marginBottom: 0 }}>
+                {reviewError}
               </p>
             )}
           </div>
@@ -756,6 +617,8 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                   setTopicAnalysis(null);
                   setShowTopics(false);
                   setSaved(false);
+                  setReviewSessionId(null);
+                  setReviewError(null);
                 }}
                 style={{
                   background: "rgba(251,191,36,0.08)",
@@ -771,19 +634,74 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
             {isPremium ? (
               <button
                 className="retry-btn review-btn"
-                disabled={savingReview || !reviewSessionId}
-                onClick={() =>
-                  reviewSessionId && router.push(`/review/${reviewSessionId}`)
-                }
+                disabled={savingReview || wrongOnes.length === 0}
+                onClick={async () => {
+                  if (savingReview || wrongOnes.length === 0) return;
+
+                  if (reviewSessionId) {
+                    router.push(`/review/${reviewSessionId}`);
+                    return;
+                  }
+
+                  const startedAt = Date.now();
+                  setSavingReview(true);
+                  setReviewError(null);
+                  setReviewLoadingPct(5);
+
+                  try {
+                    await nextPaint();
+
+                    const id = Math.random().toString(36).slice(2, 10);
+                    await setDoc(doc(db, "reviewSessions", id), {
+                      questions,
+                      wrongOnes,
+                      subject: subject ?? questions[0]?.subject ?? null,
+                      userId: userId || "guest",
+                      createdAt: serverTimestamp(),
+                    });
+
+                    const elapsed = Date.now() - startedAt;
+                    if (elapsed < MIN_REVIEW_VISIBLE_MS) {
+                      await new Promise((r) =>
+                        setTimeout(r, MIN_REVIEW_VISIBLE_MS - elapsed),
+                      );
+                    }
+
+                    setReviewSessionId(id);
+                    router.push(`/review/${id}`);
+                  } catch {
+                    setReviewError("Could not prepare review session. Please try again.");
+                  } finally {
+                    setSavingReview(false);
+                    setReviewLoadingPct(0);
+                  }
+                }}
                 style={{
                   background: "rgba(251,191,36,0.08)",
                   border: "1px solid rgba(251,191,36,0.28)",
                   color: "#fbbf24",
                   boxShadow: "0 0 0 0 rgba(251,191,36,0)",
-                  opacity: savingReview ? 0.6 : 1,
+                  opacity: savingReview ? 0.75 : 1,
                 }}
               >
-                {savingReview ? "Preparing…" : "📖 Extensive Review"}
+                <span>
+                  {savingReview
+                    ? `Preparing review ${reviewLoadingPct}%`
+                    : "📖 Extensive Review"}
+                </span>
+                {savingReview && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      bottom: 0,
+                      height: 3,
+                      width: `${reviewLoadingPct}%`,
+                      background: "#fbbf24",
+                      transition: "width 0.12s linear",
+                    }}
+                  />
+                )}
               </button>
             ) : (
               <div style={{ position: "relative" }}>
@@ -857,8 +775,7 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
               className="retry-btn new-cbt"
               onClick={onReset}
               style={{
-                background:
-                  "linear-gradient(135deg,#6366f1,#4f46e5,#4338ca)",
+                background: "linear-gradient(135deg,#6366f1,#4f46e5,#4338ca)",
                 border: "1px solid rgba(129,140,248,0.4)",
                 color: "#fff",
                 boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
@@ -928,37 +845,12 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
           </div>
         )}
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 10,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 12.5,
-              color: "var(--text-muted)",
-              fontFamily: "var(--font-display)",
-              fontWeight: 600,
-            }}
-          >
-            {current + 1}{" "}
-            <span style={{ color: "#334155" }}>/ {total}</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontFamily: "var(--font-display)", fontWeight: 600 }}>
+            {current + 1} <span style={{ color: "#334155" }}>/ {total}</span>
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span
-              style={{
-                fontSize: 12,
-                color: "#34d399",
-                fontWeight: 700,
-                background: "rgba(52,211,153,0.08)",
-                border: "1px solid rgba(52,211,153,0.2)",
-                padding: "3px 9px",
-                borderRadius: 99,
-              }}
-            >
+            <span style={{ fontSize: 12, color: "#34d399", fontWeight: 700, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", padding: "3px 9px", borderRadius: 99 }}>
               ✓ {score}
             </span>
             {timeLeft !== null && (
@@ -967,15 +859,8 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
                   fontSize: 12,
                   fontWeight: 800,
                   color: timeLeft < 60 ? "#f87171" : "#fbbf24",
-                  background:
-                    timeLeft < 60
-                      ? "rgba(239,68,68,0.1)"
-                      : "rgba(251,191,36,0.1)",
-                  border: `1px solid ${
-                    timeLeft < 60
-                      ? "rgba(239,68,68,0.3)"
-                      : "rgba(251,191,36,0.25)"
-                  }`,
+                  background: timeLeft < 60 ? "rgba(239,68,68,0.1)" : "rgba(251,191,36,0.1)",
+                  border: `1px solid ${timeLeft < 60 ? "rgba(239,68,68,0.3)" : "rgba(251,191,36,0.25)"}`,
                   padding: "3px 9px",
                   borderRadius: 99,
                   fontFamily: "var(--font-display)",
@@ -1004,15 +889,7 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
           </div>
         </div>
 
-        <div
-          style={{
-            height: 3,
-            background: "rgba(255,255,255,0.05)",
-            borderRadius: 99,
-            marginBottom: 4,
-            overflow: "hidden",
-          }}
-        >
+        <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 99, marginBottom: 4, overflow: "hidden" }}>
           <div
             style={{
               height: "100%",
@@ -1024,14 +901,7 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
             }}
           />
         </div>
-        <p
-          style={{
-            fontSize: 10,
-            color: "#1e293b",
-            textAlign: "right",
-            marginBottom: 18,
-          }}
-        >
+        <p style={{ fontSize: 10, color: "#1e293b", textAlign: "right", marginBottom: 18 }}>
           A B C D · Space/Enter for next
         </p>
 
@@ -1063,27 +933,12 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
               {q.year}
             </span>
           )}
-          <p
-            style={{
-              fontSize: 15,
-              color: "#f1f5f9",
-              lineHeight: 1.75,
-              fontWeight: 500,
-              margin: 0,
-            }}
-          >
+          <p style={{ fontSize: 15, color: "#f1f5f9", lineHeight: 1.75, fontWeight: 500, margin: 0 }}>
             <MathText text={q.question} />
           </p>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 7,
-            marginBottom: 14,
-          }}
-        >
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
           {q.options.map((opt) => {
             const hasLabel = /^[ABCD]\.\s/i.test(opt);
             const letter = hasLabel
@@ -1147,36 +1002,11 @@ Keep topic names short (2-4 words max). Max 4 items per array.`,
         </div>
 
         {revealed && q.explanation && (
-          <div
-            style={{
-              borderRadius: 12,
-              padding: "13px 15px",
-              marginBottom: 12,
-              background: "rgba(99,102,241,0.07)",
-              border: "1px solid rgba(99,102,241,0.18)",
-              animation: "qp-fade 0.3s ease",
-            }}
-          >
-            <p
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: "#818cf8",
-                marginBottom: 5,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-              }}
-            >
+          <div style={{ borderRadius: 12, padding: "13px 15px", marginBottom: 12, background: "rgba(99,102,241,0.07)", border: "1px solid rgba(99,102,241,0.18)", animation: "qp-fade 0.3s ease" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#818cf8", marginBottom: 5, letterSpacing: "0.06em", textTransform: "uppercase" }}>
               Explanation
             </p>
-            <p
-              style={{
-                fontSize: 13,
-                color: "#94a3b8",
-                lineHeight: 1.7,
-                margin: 0,
-              }}
-            >
+            <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.7, margin: 0 }}>
               <MathText text={q.explanation} />
             </p>
           </div>
