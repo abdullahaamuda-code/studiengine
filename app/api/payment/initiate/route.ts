@@ -8,7 +8,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
     }
 
-    // Plan amounts in kobo (₦ × 100)
     const PLANS: Record<string, { amount: number; label: string }> = {
       monthly:   { amount: 60000,  label: "Studiengine Premium — Monthly"   },
       quarterly: { amount: 160000, label: "Studiengine Premium — Quarterly"  },
@@ -38,7 +37,8 @@ export async function POST(req: NextRequest) {
             { display_name: "User ID", variable_name: "user_id", value: userId  },
           ],
         },
-        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/payment/verify`,
+        // ✅ FIXED: redirect user to success page, not the webhook
+        callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success`,
         label: selected.label,
       }),
     });
