@@ -1,4 +1,4 @@
-const CACHE = "studiengine-v2026-05-23-05";
+const CACHE = "studiengine-v3";
 const STATIC = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", e => {
