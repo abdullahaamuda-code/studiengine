@@ -504,9 +504,13 @@ function AmbassadorsInner() {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
+  // ✅ UPDATED: smart back — signed in → /app, signed out → /landing
   function goBack() {
-    if (typeof window !== "undefined" && window.history.length > 1) router.back();
-    else router.push("/");
+    if (user) {
+      router.push("/app");
+    } else {
+      router.push("/landing");
+    }
   }
 
   if (authLoading || loadingData) {
@@ -581,6 +585,7 @@ function AmbassadorsInner() {
           </button>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* ✅ UPDATED: smart back button */}
             <button
               onClick={goBack}
               style={{
@@ -597,6 +602,7 @@ function AmbassadorsInner() {
               ← Back
             </button>
 
+            {/* ✅ UPDATED: dashboard button for approved ambassadors */}
             {isApprovedAmbassador && (
               <button
                 onClick={() => router.push("/ambassadors/dashboard")}
