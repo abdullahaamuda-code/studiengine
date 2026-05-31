@@ -41,51 +41,11 @@ function StudiengineLogo({ size = 28 }: { size?: number }) {
         stroke="rgba(255,255,255,0.06)"
         strokeWidth="2"
       />
-      <rect
-        x="160"
-        y="96"
-        width="260"
-        height="52"
-        rx="26"
-        fill="url(#aln)"
-        opacity="0.9"
-      />
-      <rect
-        x="96"
-        y="166"
-        width="320"
-        height="52"
-        rx="26"
-        fill="url(#aln)"
-        opacity="0.78"
-      />
-      <rect
-        x="96"
-        y="236"
-        width="330"
-        height="52"
-        rx="26"
-        fill="url(#aln)"
-        opacity="0.62"
-      />
-      <rect
-        x="96"
-        y="306"
-        width="320"
-        height="52"
-        rx="26"
-        fill="url(#aln)"
-        opacity="0.46"
-      />
-      <rect
-        x="96"
-        y="376"
-        width="220"
-        height="52"
-        rx="26"
-        fill="url(#aln)"
-        opacity="0.3"
-      />
+      <rect x="160" y="96" width="260" height="52" rx="26" fill="url(#aln)" opacity="0.9" />
+      <rect x="96" y="166" width="320" height="52" rx="26" fill="url(#aln)" opacity="0.78" />
+      <rect x="96" y="236" width="330" height="52" rx="26" fill="url(#aln)" opacity="0.62" />
+      <rect x="96" y="306" width="320" height="52" rx="26" fill="url(#aln)" opacity="0.46" />
+      <rect x="96" y="376" width="220" height="52" rx="26" fill="url(#aln)" opacity="0.3" />
       <path
         d="M330 130 C330 130 330 86 256 86 C182 86 158 130 158 174 C158 218 194 238 256 256 C318 274 354 294 354 338 C354 382 330 426 256 426 C182 426 158 382 158 382"
         fill="none"
@@ -98,7 +58,6 @@ function StudiengineLogo({ size = 28 }: { size?: number }) {
   );
 }
 
-/* ── Premium crown pill (text) ── */
 function PremiumBadge() {
   return (
     <div
@@ -106,8 +65,7 @@ function PremiumBadge() {
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
-        background:
-          "linear-gradient(135deg,rgba(251,191,36,0.15),rgba(245,158,11,0.08))",
+        background: "linear-gradient(135deg,rgba(251,191,36,0.15),rgba(245,158,11,0.08))",
         border: "1px solid rgba(251,191,36,0.35)",
         borderRadius: 99,
         padding: "3px 10px 3px 7px",
@@ -115,33 +73,16 @@ function PremiumBadge() {
       }}
     >
       <span style={{ fontSize: 11 }}>👑</span>
-      <span
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          color: "#fbbf24",
-          letterSpacing: "0.03em",
-        }}
-      >
+      <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24", letterSpacing: "0.03em" }}>
         Premium
       </span>
     </div>
   );
 }
 
-/* ── Avatar with responsive crown:
-      - mobile: floating crown above head
-      - desktop: small corner badge ── */
 function Avatar({ letter, isPremium }: { letter: string; isPremium: boolean }) {
   return (
-    <div
-      style={{
-        position: "relative",
-        width: 34,
-        height: 34,
-        flexShrink: 0,
-      }}
-    >
+    <div style={{ position: "relative", width: 34, height: 34, flexShrink: 0 }}>
       <div
         style={{
           width: "100%",
@@ -170,7 +111,6 @@ function Avatar({ letter, isPremium }: { letter: string; isPremium: boolean }) {
         }}
       >
         {letter}
-
         {isPremium && (
           <span
             className="avatar-crown-floating"
@@ -210,7 +150,6 @@ function Avatar({ letter, isPremium }: { letter: string; isPremium: boolean }) {
   );
 }
 
-/* ── Menu item ── */
 function MenuItem({
   onClick,
   icon,
@@ -266,7 +205,8 @@ export default function Navbar({
   defaultAuthMode?: "signin" | "signup";
 }) {
   const router = useRouter();
-  const { user, isGuest, isPremium, logout } = useAuth();
+  // ✅ pull isApprovedAmbassador from auth context
+  const { user, isGuest, isPremium, isApprovedAmbassador, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState<"signin" | "signup">(
     defaultAuthMode || "signup"
@@ -277,7 +217,6 @@ export default function Navbar({
   const menuRef = useRef<HTMLDivElement>(null);
   const isLoggedIn = !!user || isGuest;
 
-  /* auto-open auth */
   useEffect(() => {
     if (!isLoggedIn && defaultAuthMode) {
       setAuthMode(defaultAuthMode);
@@ -285,7 +224,6 @@ export default function Navbar({
     }
   }, [defaultAuthMode, isLoggedIn]);
 
-  /* close menu on outside click */
   useEffect(() => {
     const h = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node))
@@ -295,7 +233,6 @@ export default function Navbar({
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
-  /* close menu on Escape */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenuOpen(false);
@@ -324,7 +261,6 @@ export default function Navbar({
         .upgrade-pill:hover { box-shadow: 0 0 20px rgba(251,191,36,0.3) !important; }
       `}</style>
 
-      {/* ══════════════ NAV BAR ══════════════ */}
       <nav
         style={{
           position: "sticky",
@@ -339,11 +275,9 @@ export default function Navbar({
           justifyContent: "space-between",
           padding: "0 16px",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
-          boxShadow:
-            "0 1px 0 rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.4)",
+          boxShadow: "0 1px 0 rgba(255,255,255,0.04), 0 8px 32px rgba(0,0,0,0.4)",
         }}
       >
-        {/* Bottom glow accent */}
         <div
           style={{
             position: "absolute",
@@ -357,7 +291,7 @@ export default function Navbar({
           }}
         />
 
-        {/* ── Logo ── */}
+        {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <StudiengineLogo size={27} />
           <span
@@ -375,8 +309,9 @@ export default function Navbar({
           </span>
         </div>
 
-        {/* ── Right side ── */}
+        {/* Right side */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+
           {/* ── LOGGED OUT ── */}
           {!isLoggedIn && (
             <>
@@ -394,16 +329,12 @@ export default function Navbar({
                   transition: "all 0.2s",
                 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor =
-                    "rgba(255,255,255,0.16)";
-                  (e.currentTarget as HTMLButtonElement).style.color =
-                    "#94a3b8";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.16)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8";
                 }}
                 onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor =
-                    "rgba(255,255,255,0.08)";
-                  (e.currentTarget as HTMLButtonElement).style.color =
-                    "#64748b";
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(255,255,255,0.08)";
+                  (e.currentTarget as HTMLButtonElement).style.color = "#64748b";
                 }}
               >
                 Sign In
@@ -424,12 +355,10 @@ export default function Navbar({
                   transition: "all 0.2s",
                 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                    "0 4px 20px rgba(99,102,241,0.5)";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(99,102,241,0.5)";
                 }}
                 onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                    "0 2px 12px rgba(99,102,241,0.3)";
+                  (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 12px rgba(99,102,241,0.3)";
                 }}
               >
                 Sign Up
@@ -440,7 +369,7 @@ export default function Navbar({
           {/* ── LOGGED IN ── */}
           {isLoggedIn && (
             <>
-              {/* Upgrade pill — only for non-premium */}
+              {/* Upgrade pill */}
               {!isPremium && (
                 <button
                   className="upgrade-pill"
@@ -449,8 +378,7 @@ export default function Navbar({
                     display: "flex",
                     alignItems: "center",
                     gap: 5,
-                    background:
-                      "linear-gradient(135deg,rgba(251,191,36,0.12),rgba(245,158,11,0.06))",
+                    background: "linear-gradient(135deg,rgba(251,191,36,0.12),rgba(245,158,11,0.06))",
                     border: "1px solid rgba(251,191,36,0.28)",
                     color: "#fbbf24",
                     fontSize: 12,
@@ -468,7 +396,7 @@ export default function Navbar({
                 </button>
               )}
 
-              {/* Premium badge — visible on desktop */}
+              {/* Premium badge — desktop only */}
               {isPremium && (
                 <div className="hide-mobile">
                   <PremiumBadge />
@@ -476,16 +404,11 @@ export default function Navbar({
               )}
 
               {/* Avatar + dropdown */}
-              <div
-                ref={menuRef}
-                style={{ position: "relative" }}
-                className="nav-avatar-wrap"
-              >
+              <div ref={menuRef} style={{ position: "relative" }} className="nav-avatar-wrap">
                 <div onClick={() => setMenuOpen(m => !m)}>
                   <Avatar letter={avatarLetter} isPremium={isPremium} />
                 </div>
 
-                {/* ── Dropdown menu ── */}
                 {menuOpen && (
                   <div
                     style={{
@@ -500,10 +423,8 @@ export default function Navbar({
                       borderRadius: 16,
                       padding: "6px",
                       zIndex: 100,
-                      boxShadow:
-                        "0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset",
-                      animation:
-                        "menu-in 0.2s cubic-bezier(0.4,0,0.2,1) forwards",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03) inset",
+                      animation: "menu-in 0.2s cubic-bezier(0.4,0,0.2,1) forwards",
                     }}
                   >
                     {/* Top glow */}
@@ -514,12 +435,11 @@ export default function Navbar({
                         left: "20%",
                         right: "20%",
                         height: 1,
-                        background:
-                          "linear-gradient(90deg,transparent,rgba(129,140,248,0.3),transparent)",
+                        background: "linear-gradient(90deg,transparent,rgba(129,140,248,0.3),transparent)",
                       }}
                     />
 
-                    {/* ── User info header ── */}
+                    {/* User info header */}
                     <div
                       style={{
                         padding: "10px 12px 12px",
@@ -527,14 +447,7 @@ export default function Navbar({
                         marginBottom: 4,
                       }}
                     >
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          marginBottom: 8,
-                        }}
-                      >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                         <Avatar letter={avatarLetter} isPremium={isPremium} />
                         <div style={{ overflow: "hidden" }}>
                           {user && (
@@ -554,17 +467,10 @@ export default function Navbar({
                             </p>
                           )}
                           {isGuest && (
-                            <p
-                              style={{
-                                fontSize: 12,
-                                color: "#475569",
-                                margin: "0 0 2px",
-                              }}
-                            >
+                            <p style={{ fontSize: 12, color: "#475569", margin: "0 0 2px" }}>
                               Guest session
                             </p>
                           )}
-                          {/* Plan badge */}
                           {isPremium ? (
                             <PremiumBadge />
                           ) : (
@@ -574,18 +480,12 @@ export default function Navbar({
                                 alignItems: "center",
                                 gap: 4,
                                 background: "rgba(255,255,255,0.04)",
-                                border:
-                                  "1px solid rgba(255,255,255,0.07)",
+                                border: "1px solid rgba(255,255,255,0.07)",
                                 borderRadius: 99,
                                 padding: "2px 8px",
                               }}
                             >
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  color: "#475569",
-                                }}
-                              >
+                              <span style={{ fontSize: 10, color: "#475569" }}>
                                 {isGuest ? "👤 Guest" : "Free Plan"}
                               </span>
                             </div>
@@ -594,7 +494,7 @@ export default function Navbar({
                       </div>
                     </div>
 
-                    {/* ── Menu actions ── */}
+                    {/* Upgrade CTA */}
                     {!isPremium && (
                       <button
                         onClick={() => {
@@ -606,10 +506,8 @@ export default function Navbar({
                           textAlign: "left",
                           padding: "10px 12px",
                           marginBottom: 4,
-                          background:
-                            "linear-gradient(135deg,rgba(251,191,36,0.1),rgba(245,158,11,0.05))",
-                          border:
-                            "1px solid rgba(251,191,36,0.2)",
+                          background: "linear-gradient(135deg,rgba(251,191,36,0.1),rgba(245,158,11,0.05))",
+                          border: "1px solid rgba(251,191,36,0.2)",
                           borderRadius: 10,
                           color: "#fbbf24",
                           fontSize: 13,
@@ -659,10 +557,8 @@ export default function Navbar({
                           <span
                             style={{
                               fontSize: 10,
-                              background:
-                                "rgba(251,191,36,0.12)",
-                              border:
-                                "1px solid rgba(251,191,36,0.25)",
+                              background: "rgba(251,191,36,0.12)",
+                              border: "1px solid rgba(251,191,36,0.25)",
                               color: "#fbbf24",
                               borderRadius: 99,
                               padding: "1px 6px",
@@ -674,13 +570,20 @@ export default function Navbar({
                       }
                     />
 
-                    <div
-                      style={{
-                        height: 1,
-                        background: "rgba(255,255,255,0.05)",
-                        margin: "4px 0",
-                      }}
-                    />
+                    {/* ✅ NEW: Ambassador dashboard link — only for approved ambassadors */}
+                    {isApprovedAmbassador && (
+                      <MenuItem
+                        onClick={() => {
+                          setMenuOpen(false);
+                          router.push("/ambassadors/dashboard");
+                        }}
+                        icon="🌟"
+                        label="Ambassador Dashboard"
+                        color="#818cf8"
+                      />
+                    )}
+
+                    <div style={{ height: 1, background: "rgba(255,255,255,0.05)", margin: "4px 0" }} />
 
                     <MenuItem
                       onClick={() => {
@@ -699,7 +602,7 @@ export default function Navbar({
         </div>
       </nav>
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       <AuthModal
         open={showAuth}
         onClose={() => setShowAuth(false)}
